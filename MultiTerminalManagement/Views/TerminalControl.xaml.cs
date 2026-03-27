@@ -7,6 +7,8 @@ using System.Windows.Input;
 using System.Windows.Media;
 using EasyWindowsTerminalControl;
 using Microsoft.Terminal.Wpf;
+using MultiTerminalManagement.Helpers;
+using MultiTerminalManagement.Services;
 using MultiTerminalManagement.ViewModels;
 
 namespace MultiTerminalManagement.Views
@@ -16,9 +18,12 @@ namespace MultiTerminalManagement.Views
         private EasyTerminalControl _termControl;
         private bool _terminalCreated;
         private int _fontSize = 14;
+        private TerminalSearchBar _searchBar;
+        private CommandCompletionMonitor _completionMonitor;
 
         public event EventHandler CloseRequested;
         public event EventHandler ZoomRequested;
+        public event EventHandler<string> BroadcastSendRequested;
 
         public bool ShowHeader
         {
@@ -69,11 +74,25 @@ namespace MultiTerminalManagement.Views
 
                 Dispatcher.BeginInvoke(new Action(() => ApplyTheme()),
                     System.Windows.Threading.DispatcherPriority.Loaded);
+
+                // Send startup command if configured
+                if (!string.IsNullOrEmpty(vm.StartupCommand))
+                {
+                    _ = SendStartupCommandAsync(vm.StartupCommand);
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Failed to create terminal: {ex.Message}", "Error");
             }
+        }
+
+        private async System.Threading.Tasks.Task SendStartupCommandAsync(string command)
+        {
+            await System.Threading.Tasks.Task.Delay(500);
+            foreach (char c in command)
+                WriteToConPTY(c.ToString());
+            WriteToConPTY("\r");
         }
 
         private void ApplyTheme()
@@ -255,6 +274,17 @@ namespace MultiTerminalManagement.Views
 
             InputBox.Clear();
 
+            await SendTextToTerminal(text);
+
+            // Broadcast if mode is active
+            if (DataContext is TerminalViewModel vm && vm.IsBroadcastModeActive && vm.IsBroadcastTarget)
+                BroadcastSendRequested?.Invoke(this, text);
+
+            InputBox.Focus();
+        }
+
+        private async Task SendTextToTerminal(string text)
+        {
             var normalized = text.Replace("\r\n", "\n");
             var lines = normalized.Split('\n');
 
@@ -269,8 +299,11 @@ namespace MultiTerminalManagement.Views
                 }
                 WriteToConPTY("\r");
             }
+        }
 
-            InputBox.Focus();
+        public async void SendBroadcastCommand(string text)
+        {
+            await SendTextToTerminal(text);
         }
 
         // ---- Keyboard handling ----
@@ -307,6 +340,16 @@ namespace MultiTerminalManagement.Views
             else if (e.Key == Key.L && Keyboard.Modifiers == ModifierKeys.Control)
             {
                 WriteToConPTY("\x0C");
+                e.Handled = true;
+            }
+            else if (e.Key == Key.S && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift))
+            {
+                OpenSnippetPicker();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                ToggleSearch();
                 e.Handled = true;
             }
         }
@@ -372,6 +415,106 @@ namespace MultiTerminalManagement.Views
         private void ZoomButton_Click(object sender, RoutedEventArgs e)
         {
             ZoomRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        // ---- Snippet ----
+
+        private void SnippetButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpenSnippetPicker();
+        }
+
+        private void OpenSnippetPicker()
+        {
+            var picker = new SnippetPickerPopup
+            {
+                Owner = Window.GetWindow(this)
+            };
+
+            if (picker.ShowDialog() == true && picker.SelectedSnippet != null)
+            {
+                var resolved = PlaceholderInputDialog.ResolveCommand(
+                    picker.SelectedSnippet.Command, Window.GetWindow(this));
+
+                if (resolved != null)
+                    InputBox.Text = resolved;
+            }
+            InputBox.Focus();
+        }
+
+        // ---- Search ----
+
+        public event EventHandler<TimeSpan> CommandCompleted;
+
+        public void ToggleSearch()
+        {
+            if (_searchBar != null && SearchBarHost.Content != null)
+            {
+                SearchBarHost.Content = null;
+                _searchBar = null;
+                InputBox.Focus();
+                return;
+            }
+
+            _searchBar = new TerminalSearchBar();
+            _searchBar.CloseRequested += (s, _) =>
+            {
+                SearchBarHost.Content = null;
+                _searchBar = null;
+                InputBox.Focus();
+            };
+
+            // Try to get console text
+            string text = "";
+            try
+            {
+                var pty = _termControl?.ConPTYTerm;
+                if (pty != null)
+                    text = pty.GetConsoleText(true);
+            }
+            catch { }
+
+            _searchBar.SetText(text);
+            SearchBarHost.Content = _searchBar;
+            _searchBar.FocusSearch();
+        }
+
+        // ---- Notification Monitor ----
+
+        public void InitCompletionMonitor()
+        {
+            _completionMonitor = new CommandCompletionMonitor();
+            _completionMonitor.CommandCompleted += duration =>
+            {
+                if (DataContext is TerminalViewModel vm)
+                {
+                    vm.IsCommandRunning = false;
+                    vm.HasCompletedCommand = true;
+                }
+                CommandCompleted?.Invoke(this, duration);
+            };
+
+            // Hook into output via TerminalOutput event
+            try
+            {
+                if (_termControl?.ConPTYTerm != null)
+                {
+                    _termControl.LogConPTYOutput = true;
+                    _termControl.ConPTYTerm.TerminalOutput += (s, args) =>
+                    {
+                        Dispatcher.BeginInvoke(new Action(() =>
+                            _completionMonitor?.ProcessOutput(args?.ToString() ?? "")));
+                    };
+                }
+            }
+            catch { }
+        }
+
+        public void MarkCommandSent()
+        {
+            if (DataContext is TerminalViewModel vm)
+                vm.IsCommandRunning = true;
+            _completionMonitor?.MarkCommandSent();
         }
     }
 }

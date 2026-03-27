@@ -1,0 +1,18 @@
+<Window x:Class="MultiTerminalManagement.Views.PlaceholderInputDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Fill Placeholders"
+        Width="400" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#1e1e1e">
+    <StackPanel Margin="16">
+        <TextBlock Text="Fill in the placeholder values:" Foreground="#CCCCCC" Margin="0,0,0,8"/>
+        <ItemsControl x:Name="PlaceholderList"/>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Content="OK" Width="75" Margin="0,0,8,0" Click="OK_Click" IsDefault="True"
+                    Background="#0e639c" Foreground="White" BorderThickness="0" Padding="4"/>
+            <Button Content="Cancel" Width="75" Click="Cancel_Click" IsCancel="True"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

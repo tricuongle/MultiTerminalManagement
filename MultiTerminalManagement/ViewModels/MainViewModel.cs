@@ -16,6 +16,7 @@ namespace MultiTerminalManagement.ViewModels
         private int _gridColumns = 2;
         private int _gridRows = 2;
         private int _fontSize = 14;
+        private bool _isBroadcastMode;
 
         public ObservableCollection<TerminalViewModel> Terminals { get; } = new ObservableCollection<TerminalViewModel>();
 
@@ -49,11 +50,25 @@ namespace MultiTerminalManagement.ViewModels
             set => SetProperty(ref _fontSize, value);
         }
 
+        public bool IsBroadcastMode
+        {
+            get => _isBroadcastMode;
+            set
+            {
+                if (SetProperty(ref _isBroadcastMode, value))
+                {
+                    foreach (var t in Terminals)
+                        t.IsBroadcastModeActive = value;
+                }
+            }
+        }
+
         public ICommand AddTerminalCommand { get; }
         public ICommand CloseTerminalCommand { get; }
         public ICommand CycleTerminalCommand { get; }
         public ICommand CycleTerminalBackCommand { get; }
         public ICommand GoToTerminalCommand { get; }
+        public ICommand ToggleBroadcastCommand { get; }
 
         // Raised when navigation requests focus on a terminal
         public event Action<TerminalViewModel> FocusTerminalRequested;
@@ -69,6 +84,7 @@ namespace MultiTerminalManagement.ViewModels
             CloseTerminalCommand = new RelayCommand(param => CloseTerminal(param as TerminalViewModel));
             CycleTerminalCommand = new RelayCommand(_ => CycleTerminal(forward: true));
             CycleTerminalBackCommand = new RelayCommand(_ => CycleTerminal(forward: false));
+            ToggleBroadcastCommand = new RelayCommand(_ => IsBroadcastMode = !IsBroadcastMode);
             GoToTerminalCommand = new RelayCommand(param =>
             {
                 if (param is int index)
@@ -163,6 +179,79 @@ namespace MultiTerminalManagement.ViewModels
             if (oldIndex == newIndex) return;
 
             Terminals.Move(oldIndex, newIndex);
+        }
+
+        public void CreateTerminalFromProfile(Models.TerminalProfile profile)
+        {
+            var vm = new TerminalViewModel(
+                profile.Name,
+                profile.TerminalType,
+                profile.DefaultWorkingDirectory,
+                Terminals.Count,
+                profile.StartupCommand);
+            Terminals.Add(vm);
+            SelectedTerminal = vm;
+            if (IsBroadcastMode)
+                vm.IsBroadcastModeActive = true;
+        }
+
+        public Models.Session CaptureCurrentSession(string name)
+        {
+            var session = new Models.Session
+            {
+                Name = name,
+                Date = DateTime.Now,
+                GridRows = GridRows,
+                GridColumns = GridColumns,
+                IsGridMode = IsGridMode,
+                FontSize = FontSize,
+                Terminals = new System.Collections.Generic.List<Models.TerminalConfig>()
+            };
+
+            foreach (var t in Terminals)
+            {
+                session.Terminals.Add(new Models.TerminalConfig
+                {
+                    Name = t.Name,
+                    TerminalType = t.Type,
+                    WorkingDirectory = t.WorkingDirectory,
+                    StartupCommand = t.StartupCommand
+                });
+            }
+
+            return session;
+        }
+
+        public void RestoreSession(Models.Session session)
+        {
+            CloseAllTerminals();
+
+            GridRows = session.GridRows;
+            GridColumns = session.GridColumns;
+            IsGridMode = session.IsGridMode;
+            FontSize = session.FontSize;
+
+            foreach (var tc in session.Terminals)
+            {
+                var vm = new TerminalViewModel(tc.Name, tc.TerminalType, tc.WorkingDirectory, Terminals.Count, tc.StartupCommand);
+                Terminals.Add(vm);
+            }
+
+            if (Terminals.Count > 0)
+                SelectedTerminal = Terminals[0];
+        }
+
+        public void AutoSaveSession()
+        {
+            var session = CaptureCurrentSession("__last_session__");
+            Models.SessionStore.SaveLastSession(session);
+        }
+
+        public void AutoRestoreSession()
+        {
+            var session = Models.SessionStore.LoadLastSession();
+            if (session != null && session.Terminals.Count > 0)
+                RestoreSession(session);
         }
     }
 }

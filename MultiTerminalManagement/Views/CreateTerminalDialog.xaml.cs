@@ -13,6 +13,7 @@ namespace MultiTerminalManagement.Views
 {
     public partial class CreateTerminalDialog : Window
     {
+        // Profile support added
         private readonly ObservableCollection<SavedPath> _savedPaths = new ObservableCollection<SavedPath>();
         private readonly List<string> _existingTerminalNames;
 
@@ -26,8 +27,37 @@ namespace MultiTerminalManagement.Views
             _existingTerminalNames = existingTerminalNames?.ToList() ?? new List<string>();
             SavedPathsList.ItemsSource = _savedPaths;
             LoadSavedPaths();
+            LoadProfiles();
             NameBox.Focus();
             NameBox.SelectAll();
+        }
+
+        private void LoadProfiles()
+        {
+            // Keep "(None)" as first item, clear the rest
+            while (ProfileCombo.Items.Count > 1)
+                ProfileCombo.Items.RemoveAt(1);
+
+            foreach (var p in TerminalProfileStore.Load())
+                ProfileCombo.Items.Add(new ComboBoxItem { Content = p.Name, Tag = p });
+        }
+
+        private void ProfileCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ProfileCombo.SelectedIndex <= 0) return;
+            if (ProfileCombo.SelectedItem is ComboBoxItem ci && ci.Tag is TerminalProfile profile)
+            {
+                NameBox.Text = GetNextName(profile.Name);
+                TypeCombo.SelectedIndex = profile.TerminalType == TerminalType.PowerShell ? 1 : 0;
+                PathBox.Text = profile.DefaultWorkingDirectory ?? "";
+            }
+        }
+
+        private void ManageProfiles_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new ProfileManagerDialog { Owner = this };
+            dlg.ShowDialog();
+            LoadProfiles();
         }
 
         private void LoadSavedPaths()

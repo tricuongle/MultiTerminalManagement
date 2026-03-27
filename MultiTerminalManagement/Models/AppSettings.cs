@@ -9,6 +9,9 @@ namespace MultiTerminalManagement.Models
         public int GridColumns { get; set; } = 2;
         public int GridRows { get; set; } = 2;
         public int FontSize { get; set; } = 14;
+        public bool AutoRestoreSession { get; set; } = false;
+        public bool NotifyOnCommandCompletion { get; set; } = true;
+        public int NotificationThresholdSeconds { get; set; } = 10;
 
         private static readonly string FilePath = Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory, "settings.json");

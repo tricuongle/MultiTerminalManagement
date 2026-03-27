@@ -28,6 +28,40 @@ namespace MultiTerminalManagement.ViewModels
         public TerminalType Type { get; }
         public string CommandLine { get; }
         public string AccentColor { get; }
+        public string WorkingDirectory { get; }
+        public string StartupCommand { get; }
+
+        // Broadcast
+        private bool _isBroadcastTarget = true;
+        private bool _isBroadcastModeActive;
+
+        public bool IsBroadcastTarget
+        {
+            get => _isBroadcastTarget;
+            set => SetProperty(ref _isBroadcastTarget, value);
+        }
+
+        public bool IsBroadcastModeActive
+        {
+            get => _isBroadcastModeActive;
+            set => SetProperty(ref _isBroadcastModeActive, value);
+        }
+
+        // Notification
+        private bool _isCommandRunning;
+        private bool _hasCompletedCommand;
+
+        public bool IsCommandRunning
+        {
+            get => _isCommandRunning;
+            set => SetProperty(ref _isCommandRunning, value);
+        }
+
+        public bool HasCompletedCommand
+        {
+            get => _hasCompletedCommand;
+            set => SetProperty(ref _hasCompletedCommand, value);
+        }
 
         public string Name
         {
@@ -73,11 +107,13 @@ namespace MultiTerminalManagement.ViewModels
         /// </summary>
         public object TermPty { get; set; }
 
-        public TerminalViewModel(string name, TerminalType type, string workingDirectory = null, int index = 0)
+        public TerminalViewModel(string name, TerminalType type, string workingDirectory = null, int index = 0, string startupCommand = null)
         {
             _index = index;
             Name = name;
             Type = type;
+            WorkingDirectory = workingDirectory;
+            StartupCommand = startupCommand;
             CommandLine = BuildCommandLine(type, workingDirectory);
             AccentColor = AccentPalette[index % AccentPalette.Length];
         }

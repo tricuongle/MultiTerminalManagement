@@ -81,7 +81,7 @@
                                   Cursor="Hand"/>
                 </StackPanel>
 
-                <!-- Left side: + button then tabs -->
+                <!-- Left side: + button, profiles, broadcast, snippets, sessions -->
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Content="+"
                             Command="{Binding AddTerminalCommand}"
@@ -94,6 +94,54 @@
                             Cursor="Hand"
                             ToolTip="New Terminal"
                             Margin="0,0,4,0"/>
+
+                    <!-- Profiles dropdown -->
+                    <ComboBox x:Name="ProfilesDropdown" Width="100" Margin="2,0"
+                              ToolTip="Quick-create from profile"
+                              SelectionChanged="ProfilesDropdown_SelectionChanged">
+                        <ComboBoxItem Content="Profiles" IsSelected="True" IsEnabled="False"/>
+                    </ComboBox>
+
+                    <Border Width="1" Background="#555" Margin="4,2"/>
+
+                    <!-- Broadcast toggle -->
+                    <ToggleButton x:Name="BroadcastToggle"
+                                  Content="Broadcast"
+                                  IsChecked="{Binding IsBroadcastMode}"
+                                  Foreground="White"
+                                  Padding="8,2"
+                                  BorderThickness="0"
+                                  Cursor="Hand"
+                                  ToolTip="Toggle broadcast mode (send to all terminals)"
+                                  Margin="2,0"/>
+
+                    <Border Width="1" Background="#555" Margin="4,2"/>
+
+                    <!-- Snippets -->
+                    <Button Content="{}{}"
+                            Click="ManageSnippets_Click"
+                            Background="Transparent"
+                            Foreground="#E0E0E0"
+                            FontSize="12"
+                            Padding="8,2"
+                            BorderThickness="0"
+                            Cursor="Hand"
+                            ToolTip="Manage Snippets"
+                            Margin="2,0"/>
+
+                    <!-- Sessions -->
+                    <Button Content="Sessions"
+                            Click="ManageSessions_Click"
+                            Background="Transparent"
+                            Foreground="#E0E0E0"
+                            FontSize="12"
+                            Padding="8,2"
+                            BorderThickness="0"
+                            Cursor="Hand"
+                            ToolTip="Save/Load Sessions"
+                            Margin="2,0"/>
+
+                    <Border Width="1" Background="#555" Margin="4,2"/>
                 </StackPanel>
 
                 <!-- Tabs fill remaining space -->
@@ -147,6 +195,20 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Orientation="Horizontal">
+                                <!-- Completion indicator -->
+                                <Ellipse Width="6" Height="6" Margin="0,0,3,0" VerticalAlignment="Center"
+                                         Fill="#13a10e">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding HasCompletedCommand}" Value="True">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
                                 <!-- Accent dot -->
                                 <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
                                          Fill="{Binding AccentColor, Converter={StaticResource StringToBrush}}"/>
@@ -184,6 +246,15 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
             </DockPanel>
+        </Border>
+
+        <!-- Broadcast banner -->
+        <Border Grid.Row="1" Background="#c27d1a" Padding="6,3" VerticalAlignment="Top"
+                Panel.ZIndex="10"
+                Visibility="{Binding IsBroadcastMode, Converter={StaticResource BoolToVis}}">
+            <TextBlock Text="BROADCAST MODE: Input will be sent to all checked terminals"
+                       Foreground="White" FontWeight="SemiBold" FontSize="11"
+                       HorizontalAlignment="Center"/>
         </Border>
 
         <!-- Terminal host -->

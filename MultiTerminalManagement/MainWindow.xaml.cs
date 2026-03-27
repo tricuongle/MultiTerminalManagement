@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using MultiTerminalManagement.Models;
+using MultiTerminalManagement.Services;
 using MultiTerminalManagement.ViewModels;
 using MultiTerminalManagement.Views;
 
@@ -27,11 +28,17 @@ namespace MultiTerminalManagement
             DataContext = _viewModel;
 
             LoadSettings();
+            LoadProfilesDropdown();
 
             _viewModel.Terminals.CollectionChanged += Terminals_CollectionChanged;
             _viewModel.PropertyChanged += ViewModel_PropertyChanged;
             _viewModel.FocusTerminalRequested += OnFocusTerminalRequested;
             _initialized = true;
+
+            // Auto-restore session
+            var settings = AppSettings.Load();
+            if (settings.AutoRestoreSession)
+                _viewModel.AutoRestoreSession();
         }
 
         // ---- Settings persistence ----
@@ -82,6 +89,31 @@ namespace MultiTerminalManagement
                     var tc = new TerminalControl { DataContext = vm };
                     tc.CloseRequested += (s, _) => _viewModel.CloseTerminalCommand.Execute(vm);
                     tc.ZoomRequested += (s, _) => ToggleZoom(vm);
+
+                    // Broadcast: when one terminal sends, relay to others
+                    tc.BroadcastSendRequested += (sender, text) =>
+                    {
+                        foreach (var kvp in _terminalControls)
+                        {
+                            if (kvp.Value != sender && kvp.Key.IsBroadcastTarget)
+                                kvp.Value.SendBroadcastCommand(text);
+                        }
+                    };
+
+                    // Command completion notification
+                    var settings = AppSettings.Load();
+                    tc.CommandCompleted += (sender, duration) =>
+                    {
+                        if (settings.NotifyOnCommandCompletion
+                            && duration.TotalSeconds >= settings.NotificationThresholdSeconds
+                            && _viewModel.SelectedTerminal != vm)
+                        {
+                            ToastNotificationService.ShowNotification(
+                                "Command Completed",
+                                $"\"{vm.Name}\" finished ({duration.TotalSeconds:F0}s)");
+                        }
+                    };
+
                     _terminalControls[vm] = tc;
                     TerminalHost.Children.Add(tc);
 
@@ -132,7 +164,11 @@ namespace MultiTerminalManagement
                 UpdateTerminalLayout();
 
                 if (e.PropertyName == nameof(MainViewModel.SelectedTerminal))
+                {
                     FocusSelectedTerminal();
+                    if (_viewModel.SelectedTerminal != null)
+                        _viewModel.SelectedTerminal.HasCompletedCommand = false;
+                }
             }
 
             if (e.PropertyName == nameof(MainViewModel.FontSize))
@@ -254,6 +290,16 @@ namespace MultiTerminalManagement
             {
                 OpenQuickSwitcher();
                 e.Handled = true;
+            }
+            else if (e.Key == Key.F && Keyboard.Modifiers == ModifierKeys.Control)
+            {
+                // Delegate to active terminal
+                if (_viewModel.SelectedTerminal != null &&
+                    _terminalControls.TryGetValue(_viewModel.SelectedTerminal, out var tc))
+                {
+                    tc.ToggleSearch();
+                    e.Handled = true;
+                }
             }
         }
 
@@ -432,7 +478,59 @@ namespace MultiTerminalManagement
 
         private void Window_Closing(object sender, CancelEventArgs e)
         {
+            _viewModel.AutoSaveSession();
+            ToastNotificationService.Cleanup();
             _viewModel.CloseAllTerminals();
+        }
+
+        // ---- Profiles dropdown ----
+
+        private void LoadProfilesDropdown()
+        {
+            while (ProfilesDropdown.Items.Count > 1)
+                ProfilesDropdown.Items.RemoveAt(1);
+
+            foreach (var p in TerminalProfileStore.Load())
+            {
+                ProfilesDropdown.Items.Add(new ComboBoxItem { Content = p.Name, Tag = p });
+            }
+        }
+
+        private void ProfilesDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ProfilesDropdown.SelectedIndex <= 0) return;
+
+            if (ProfilesDropdown.SelectedItem is ComboBoxItem ci && ci.Tag is TerminalProfile profile)
+            {
+                _viewModel.CreateTerminalFromProfile(profile);
+            }
+
+            // Reset to header item
+            ProfilesDropdown.SelectedIndex = 0;
+        }
+
+        // ---- Snippet Manager ----
+
+        private void ManageSnippets_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new SnippetManagerDialog { Owner = this };
+            dlg.ShowDialog();
+        }
+
+        // ---- Session Manager ----
+
+        private void ManageSessions_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new SessionManagerDialog { Owner = this };
+            dlg.SetCurrentSessionCapture(_viewModel.CaptureCurrentSession(""));
+            if (dlg.ShowDialog() == true && dlg.SessionToLoad != null)
+            {
+                _viewModel.RestoreSession(dlg.SessionToLoad);
+                LoadSettings(); // Sync combo boxes
+                SelectComboByContent(ColumnsCombo, _viewModel.GridColumns.ToString());
+                SelectComboByContent(RowsCombo, _viewModel.GridRows.ToString());
+                SelectComboByContent(FontSizeCombo, _viewModel.FontSize.ToString());
+            }
         }
 
         private void ColumnsCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)

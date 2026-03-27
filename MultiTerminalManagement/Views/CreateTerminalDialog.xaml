@@ -2,12 +2,14 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="New Terminal"
-        Width="500" Height="380"
+        Width="500" Height="420"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="#1e1e1e">
     <Grid Margin="16">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="10"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="10"/>
             <RowDefinition Height="Auto"/>
@@ -28,13 +30,32 @@
             <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Name -->
+        <!-- Profile -->
         <TextBlock Grid.Row="0" Grid.Column="0"
+                   Text="Profile:"
+                   Foreground="#CCCCCC"
+                   VerticalAlignment="Center"/>
+        <Grid Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <ComboBox x:Name="ProfileCombo" Grid.Column="0" Padding="4"
+                      SelectionChanged="ProfileCombo_SelectionChanged">
+                <ComboBoxItem Content="(None)" IsSelected="True"/>
+            </ComboBox>
+            <Button Grid.Column="1" Content="&#x2699;" FontSize="14" Width="30" Margin="4,0,0,0"
+                    Click="ManageProfiles_Click" ToolTip="Manage Profiles"
+                    Background="Transparent" Foreground="#999" BorderThickness="0" Cursor="Hand"/>
+        </Grid>
+
+        <!-- Name -->
+        <TextBlock Grid.Row="2" Grid.Column="0"
                    Text="Name:"
                    Foreground="#CCCCCC"
                    VerticalAlignment="Center"/>
         <TextBox x:Name="NameBox"
-                 Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2"
+                 Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2"
                  Background="#2d2d2d"
                  Foreground="#CCCCCC"
                  CaretBrush="#CCCCCC"
@@ -43,12 +64,12 @@
                  Text="Terminal"/>
 
         <!-- Type -->
-        <TextBlock Grid.Row="2" Grid.Column="0"
+        <TextBlock Grid.Row="4" Grid.Column="0"
                    Text="Type:"
                    Foreground="#CCCCCC"
                    VerticalAlignment="Center"/>
         <ComboBox x:Name="TypeCombo"
-                  Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2"
+                  Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2"
                   SelectedIndex="0"
                   Padding="4">
             <ComboBoxItem Content="CMD"/>
@@ -56,18 +77,18 @@
         </ComboBox>
 
         <!-- Working Directory -->
-        <TextBlock Grid.Row="4" Grid.Column="0"
+        <TextBlock Grid.Row="6" Grid.Column="0"
                    Text="Directory:"
                    Foreground="#CCCCCC"
                    VerticalAlignment="Center"/>
         <TextBox x:Name="PathBox"
-                 Grid.Row="4" Grid.Column="1"
+                 Grid.Row="6" Grid.Column="1"
                  Background="#2d2d2d"
                  Foreground="#CCCCCC"
                  CaretBrush="#CCCCCC"
                  BorderBrush="#3e3e3e"
                  Padding="4"/>
-        <StackPanel Grid.Row="4" Grid.Column="2" Orientation="Horizontal">
+        <StackPanel Grid.Row="6" Grid.Column="2" Orientation="Horizontal">
             <Button Content="..." Width="30" Margin="4,0,0,0"
                     Click="Browse_Click" ToolTip="Browse folder"/>
             <Button Content="X" Width="30" Margin="4,0,0,0"
@@ -76,12 +97,12 @@
         </StackPanel>
 
         <!-- Save alias for path -->
-        <TextBlock Grid.Row="6" Grid.Column="0"
+        <TextBlock Grid.Row="8" Grid.Column="0"
                    Text="Alias:"
                    Foreground="#CCCCCC"
                    VerticalAlignment="Center"/>
         <TextBox x:Name="AliasBox"
-                 Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2"
+                 Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="2"
                  Background="#2d2d2d"
                  Foreground="#CCCCCC"
                  CaretBrush="#CCCCCC"
@@ -90,13 +111,13 @@
                  ToolTip="Alias name for this path (used for auto-naming terminals)"/>
 
         <!-- Saved paths list -->
-        <TextBlock Grid.Row="8" Grid.Column="0"
+        <TextBlock Grid.Row="10" Grid.Column="0"
                    Text="Saved:"
                    Foreground="#888"
                    VerticalAlignment="Top"
                    FontSize="11"/>
         <ItemsControl x:Name="SavedPathsList"
-                      Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="2"
+                      Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="2"
                       MaxHeight="90"
                       Background="#2d2d2d"
                       BorderBrush="#3e3e3e"
@@ -132,7 +153,7 @@
                             <TextBlock Grid.Column="1" Text="{Binding Path}" Foreground="#999"
                                        VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                        FontSize="11"/>
-                            <Button Grid.Column="2" Content="−" FontSize="12"
+                            <Button Grid.Column="2" Content="&#x2212;" FontSize="12"
                                     Click="RemoveSavedPath_Click"
                                     Background="Transparent" Foreground="#FF6666"
                                     BorderThickness="0" Cursor="Hand"
@@ -145,12 +166,12 @@
         </ItemsControl>
 
         <!-- Hint -->
-        <TextBlock Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="3"
+        <TextBlock Grid.Row="12" Grid.Column="0" Grid.ColumnSpan="3"
                    Text="Click a saved path to auto-fill name &amp; directory."
                    Foreground="#666" FontSize="11" FontStyle="Italic"/>
 
         <!-- Buttons -->
-        <StackPanel Grid.Row="12" Grid.Column="0" Grid.ColumnSpan="3"
+        <StackPanel Grid.Row="14" Grid.Column="0" Grid.ColumnSpan="3"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right">
             <Button Content="Create" Width="75" Margin="0,0,8,0"

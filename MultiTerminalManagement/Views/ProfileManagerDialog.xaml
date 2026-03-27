@@ -1,0 +1,97 @@
+<Window x:Class="MultiTerminalManagement.Views.ProfileManagerDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Profile Manager"
+        Width="600" Height="400"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#1e1e1e">
+    <Grid Margin="12">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="180"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Profile list -->
+        <DockPanel Grid.Column="0" Margin="0,0,8,0">
+            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                <Button Content="+ Add" Click="Add_Click" Padding="8,3"
+                        Background="#0e639c" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                <Button Content="Delete" Click="Delete_Click" Padding="8,3" Margin="4,0,0,0"
+                        Background="#442222" Foreground="#cc6666" BorderThickness="0" Cursor="Hand"/>
+            </StackPanel>
+            <ListBox x:Name="ProfileList" Background="#252526" Foreground="#E0E0E0"
+                     BorderBrush="#3e3e3e" SelectionChanged="ProfileList_SelectionChanged">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="Foreground" Value="#E0E0E0"/>
+                        <Setter Property="Padding" Value="6,4"/>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+            </ListBox>
+        </DockPanel>
+
+        <!-- Edit form -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="8"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="80"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Name:" Foreground="#CCCCCC" VerticalAlignment="Center"/>
+            <TextBox x:Name="ProfNameBox" Grid.Row="0" Grid.Column="1"
+                     Background="#2d2d2d" Foreground="#CCCCCC" CaretBrush="#CCCCCC"
+                     BorderBrush="#3e3e3e" Padding="4"/>
+
+            <TextBlock Grid.Row="2" Text="Type:" Foreground="#CCCCCC" VerticalAlignment="Center"/>
+            <ComboBox x:Name="ProfTypeCombo" Grid.Row="2" Grid.Column="1" Padding="4">
+                <ComboBoxItem Content="CMD"/>
+                <ComboBoxItem Content="PowerShell"/>
+            </ComboBox>
+
+            <TextBlock Grid.Row="4" Text="Directory:" Foreground="#CCCCCC" VerticalAlignment="Center"/>
+            <TextBox x:Name="ProfDirBox" Grid.Row="4" Grid.Column="1"
+                     Background="#2d2d2d" Foreground="#CCCCCC" CaretBrush="#CCCCCC"
+                     BorderBrush="#3e3e3e" Padding="4"/>
+
+            <TextBlock Grid.Row="6" Text="Startup:" Foreground="#CCCCCC" VerticalAlignment="Center"/>
+            <TextBox x:Name="ProfCmdBox" Grid.Row="6" Grid.Column="1"
+                     Background="#2d2d2d" Foreground="#CCCCCC" CaretBrush="#CCCCCC"
+                     BorderBrush="#3e3e3e" Padding="4"
+                     ToolTip="Command to run after terminal starts"/>
+
+            <TextBlock Grid.Row="8" Text="Color:" Foreground="#CCCCCC" VerticalAlignment="Center"/>
+            <ComboBox x:Name="ProfColorCombo" Grid.Row="8" Grid.Column="1" Padding="4">
+                <ComboBoxItem Content="#0e639c" Tag="Blue"/>
+                <ComboBoxItem Content="#16825d" Tag="Green"/>
+                <ComboBoxItem Content="#68217a" Tag="Purple"/>
+                <ComboBoxItem Content="#c27d1a" Tag="Orange"/>
+                <ComboBoxItem Content="#cd3632" Tag="Red"/>
+                <ComboBoxItem Content="#3a96dd" Tag="Cyan"/>
+                <ComboBoxItem Content="#b4009e" Tag="Magenta"/>
+                <ComboBoxItem Content="#13a10e" Tag="Bright Green"/>
+            </ComboBox>
+
+            <StackPanel Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="2"
+                        Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Save Profile" Click="Save_Click" Padding="12,4"
+                        Background="#0e639c" Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                <Button Content="Close" Click="Close_Click" Padding="12,4" Margin="8,0,0,0"
+                        IsCancel="True"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
