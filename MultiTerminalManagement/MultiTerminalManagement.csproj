@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>MultiTerminalManagement</RootNamespace>
+    <AssemblyName>MultiTerminalManagement</AssemblyName>
+    <PlatformTarget>x64</PlatformTarget>
+    <NoWarn>NETSDK1206</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="EasyWindowsTerminalControl" Version="1.0.36" />
+  </ItemGroup>
+
+  <!-- Copy ALL native DLLs directly to output directory -->
+  <Target Name="CopyNativeFiles" AfterTargets="Build">
+    <PropertyGroup>
+      <TermWpfPkg>$(NuGetPackageRoot)ci.microsoft.terminal.wpf\1.22.250204002\</TermWpfPkg>
+      <ConPTYPkg>$(NuGetPackageRoot)ci.microsoft.windows.console.conpty\1.22.250314001\</ConPTYPkg>
+    </PropertyGroup>
+    <!-- Microsoft.Terminal.Control.dll (native renderer) -->
+    <Copy SourceFiles="$(TermWpfPkg)runtimes\win-x64\native\Microsoft.Terminal.Control.dll"
+          DestinationFolder="$(OutputPath)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(TermWpfPkg)runtimes\win-x64\native\Microsoft.Terminal.Control.dll')" />
+    <!-- conpty.dll -->
+    <Copy SourceFiles="$(ConPTYPkg)runtimes\win10-x64\native\conpty.dll"
+          DestinationFolder="$(OutputPath)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(ConPTYPkg)runtimes\win10-x64\native\conpty.dll')" />
+    <!-- OpenConsole.exe (x64) -->
+    <Copy SourceFiles="$(ConPTYPkg)build\native\runtimes\x64\OpenConsole.exe"
+          DestinationFolder="$(OutputPath)x64"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(ConPTYPkg)build\native\runtimes\x64\OpenConsole.exe')" />
+    <Copy SourceFiles="$(ConPTYPkg)build\native\runtimes\arm64\OpenConsole.exe"
+          DestinationFolder="$(OutputPath)arm64"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(ConPTYPkg)build\native\runtimes\arm64\OpenConsole.exe')" />
+  </Target>
+</Project>

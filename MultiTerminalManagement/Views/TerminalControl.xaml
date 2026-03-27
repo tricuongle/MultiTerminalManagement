@@ -1,0 +1,140 @@
+<UserControl x:Class="MultiTerminalManagement.Views.TerminalControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="#1e1e1e"
+             Loaded="OnLoaded">
+
+    <!-- Outer border: accent left strip + focus border -->
+    <Border x:Name="FocusBorder" BorderThickness="0" BorderBrush="Transparent">
+        <DockPanel>
+            <!-- Accent color left strip (3px) -->
+            <Border x:Name="AccentStrip" DockPanel.Dock="Left" Width="3"
+                    Background="{Binding AccentColor, Converter={StaticResource StringToBrush}}"/>
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Grid mode header bar -->
+                <DockPanel x:Name="HeaderBar" Grid.Row="0" Background="#2d2d2d" Visibility="Collapsed"
+                           MouseLeftButtonDown="HeaderBar_MouseLeftButtonDown">
+                    <!-- Close button (far right, red tint) -->
+                    <Button DockPanel.Dock="Right" Content="  X  " FontSize="10"
+                            Click="CloseButton_Click"
+                            Background="#442222" Foreground="#cc6666"
+                            BorderThickness="0" Cursor="Hand"
+                            Padding="8,4" Margin="6,0,0,0" ToolTip="Close terminal"/>
+                    <!-- Separator -->
+                    <Border DockPanel.Dock="Right" Width="1" Background="#555" Margin="6,3"/>
+                    <!-- Zoom button -->
+                    <Button x:Name="ZoomButton" DockPanel.Dock="Right" Content="&#x26F6;" FontSize="12"
+                            Click="ZoomButton_Click"
+                            Background="Transparent" Foreground="#999"
+                            BorderThickness="0" Cursor="Hand"
+                            Padding="8,2" ToolTip="Zoom in/out"/>
+
+                    <!-- Header content: Index + Type Badge + Name -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0,0,0">
+                        <!-- Index number -->
+                        <TextBlock Text="{Binding DisplayIndex}" Foreground="#888"
+                                   FontSize="11" FontFamily="Consolas"
+                                   VerticalAlignment="Center" Margin="0,0,6,0"/>
+
+                        <!-- Type badge -->
+                        <Border Background="{Binding AccentColor, Converter={StaticResource StringToBrush}}"
+                                CornerRadius="3" Padding="5,1" VerticalAlignment="Center" Margin="0,0,6,0">
+                            <TextBlock Text="{Binding TypeIcon}" Foreground="White"
+                                       FontSize="10" FontFamily="Consolas" FontWeight="Bold"/>
+                        </Border>
+
+                        <!-- Terminal name (normal mode) -->
+                        <TextBlock x:Name="HeaderNameText" Text="{Binding Name}" Foreground="#E0E0E0"
+                                   FontSize="12" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" Padding="0,3"
+                                   MouseLeftButtonDown="HeaderNameText_MouseLeftButtonDown"/>
+
+                        <!-- Terminal name (rename mode) -->
+                        <TextBox x:Name="HeaderRenameBox" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                 Visibility="Collapsed"
+                                 Background="#1e1e1e" Foreground="#E0E0E0" CaretBrush="#E0E0E0"
+                                 BorderBrush="#0e639c" BorderThickness="1"
+                                 FontSize="12" FontWeight="SemiBold"
+                                 VerticalAlignment="Center" Padding="2,2" MinWidth="80"
+                                 KeyDown="HeaderRenameBox_KeyDown"
+                                 LostFocus="HeaderRenameBox_LostFocus"/>
+                    </StackPanel>
+                </DockPanel>
+
+                <!-- Terminal area -->
+                <Grid x:Name="HostGrid" Grid.Row="1" MouseLeftButtonDown="HostGrid_MouseLeftButtonDown"/>
+
+                <!-- Input bar -->
+                <Border Grid.Row="2" Background="#252526" BorderBrush="#3e3e3e" BorderThickness="0,1,0,0">
+                    <Grid Margin="4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Text="&gt;"
+                                   Foreground="#0ea10e"
+                                   FontFamily="Consolas"
+                                   FontSize="14"
+                                   FontWeight="Bold"
+                                   VerticalAlignment="Top"
+                                   Margin="4,6,6,0"/>
+
+                        <TextBox x:Name="InputBox"
+                                 Grid.Column="1"
+                                 Background="#1e1e1e"
+                                 Foreground="#CCCCCC"
+                                 CaretBrush="#CCCCCC"
+                                 FontFamily="Consolas"
+                                 FontSize="14"
+                                 BorderBrush="#3e3e3e"
+                                 BorderThickness="1"
+                                 Padding="6,4"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 MaxHeight="120"
+                                 VerticalScrollBarVisibility="Auto"
+                                 VerticalContentAlignment="Top"
+                                 AllowDrop="True"
+                                 GotFocus="InputBox_GotFocus"
+                                 LostFocus="InputBox_LostFocus"
+                                 PreviewKeyDown="InputBox_PreviewKeyDown"
+                                 PreviewDragOver="InputBox_PreviewDragOver"
+                                 PreviewDrop="InputBox_PreviewDrop"/>
+
+                        <StackPanel Grid.Column="2" Orientation="Vertical" Margin="4,0,0,0">
+                            <Button x:Name="SendButton"
+                                    Content="Send"
+                                    Click="SendButton_Click"
+                                    Background="#0e639c"
+                                    Foreground="White"
+                                    FontSize="12"
+                                    Padding="12,4"
+                                    BorderThickness="0"
+                                    Cursor="Hand"
+                                    ToolTip="Send (Enter)"/>
+                            <TextBlock Text="Enter = Send"
+                                       Foreground="#666"
+                                       FontSize="9"
+                                       HorizontalAlignment="Center"
+                                       Margin="0,2,0,0"/>
+                            <TextBlock Text="Shift+Enter = newline"
+                                       Foreground="#666"
+                                       FontSize="9"
+                                       HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+        </DockPanel>
+    </Border>
+</UserControl>
