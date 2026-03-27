@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using MultiTerminalManagement.Models;
@@ -81,7 +82,8 @@ namespace MultiTerminalManagement.ViewModels
 
         private void AddTerminal()
         {
-            var dialog = new CreateTerminalDialog
+            var existingNames = Terminals.Select(t => t.Name);
+            var dialog = new CreateTerminalDialog(existingNames)
             {
                 Owner = Application.Current.MainWindow
             };

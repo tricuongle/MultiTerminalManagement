@@ -20,9 +20,6 @@ namespace MultiTerminalManagement
         private TerminalViewModel _zoomedTerminal;
         private bool _initialized;
 
-        // Drag-reorder state
-        private Point _dragStartPoint;
-
         public MainWindow()
         {
             InitializeComponent();
@@ -112,7 +109,6 @@ namespace MultiTerminalManagement
             }
             else if (e.Action == NotifyCollectionChangedAction.Move)
             {
-                // Rebuild the TerminalHost children in the new order
                 TerminalHost.Children.Clear();
                 foreach (var vm in _viewModel.Terminals)
                 {
@@ -135,7 +131,6 @@ namespace MultiTerminalManagement
                     _zoomedTerminal = null;
                 UpdateTerminalLayout();
 
-                // Focus the selected terminal's input when switching tabs
                 if (e.PropertyName == nameof(MainViewModel.SelectedTerminal))
                     FocusSelectedTerminal();
             }
@@ -291,7 +286,6 @@ namespace MultiTerminalManagement
 
         private void StartTabRename(TextBlock nameText)
         {
-            // Find the sibling TextBox in the same StackPanel
             if (nameText.Parent is StackPanel sp)
             {
                 var renameBox = sp.Children.OfType<TextBox>().FirstOrDefault(t => t.Name == "TabRenameBox");
@@ -365,13 +359,14 @@ namespace MultiTerminalManagement
                 CommitTabRename(tb);
         }
 
-        // ---- Tab context menu (created programmatically to avoid XAML compiler issues with Click in Styles) ----
+        // ---- Tab context menu with Move Left/Right ----
 
         private void TabHeaderList_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
         {
             var lbi = FindAncestor<ListBoxItem>((DependencyObject)e.OriginalSource);
             if (lbi == null || lbi.DataContext is not TerminalViewModel vm) return;
 
+            int idx = _viewModel.Terminals.IndexOf(vm);
             var menu = new ContextMenu();
 
             var renameItem = new MenuItem { Header = "Rename" };
@@ -381,18 +376,31 @@ namespace MultiTerminalManagement
                 if (nameText != null)
                     StartTabRename(nameText);
             };
+            menu.Items.Add(renameItem);
+
+            menu.Items.Add(new Separator());
+
+            var moveLeftItem = new MenuItem { Header = "Move Left", IsEnabled = idx > 0 };
+            moveLeftItem.Click += (s, _) => _viewModel.MoveTerminal(idx, idx - 1);
+
+            var moveRightItem = new MenuItem { Header = "Move Right", IsEnabled = idx < _viewModel.Terminals.Count - 1 };
+            moveRightItem.Click += (s, _) => _viewModel.MoveTerminal(idx, idx + 1);
+
+            menu.Items.Add(moveLeftItem);
+            menu.Items.Add(moveRightItem);
+
+            menu.Items.Add(new Separator());
 
             var closeItem = new MenuItem { Header = "Close" };
             closeItem.Click += (s, _) => _viewModel.CloseTerminalCommand.Execute(vm);
-
-            menu.Items.Add(renameItem);
-            menu.Items.Add(new Separator());
             menu.Items.Add(closeItem);
 
             menu.PlacementTarget = lbi;
             menu.IsOpen = true;
             e.Handled = true;
         }
+
+        // ---- Helpers ----
 
         private static T FindVisualChild<T>(DependencyObject parent, string name) where T : FrameworkElement
         {
@@ -407,71 +415,6 @@ namespace MultiTerminalManagement
                     return found;
             }
             return null;
-        }
-
-        // ---- Drag to reorder tabs ----
-
-        private TerminalViewModel _draggedTab;
-
-        private void TabHeaderList_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            _dragStartPoint = e.GetPosition(null);
-            var lbi = FindAncestor<ListBoxItem>((DependencyObject)e.OriginalSource);
-            _draggedTab = lbi?.DataContext as TerminalViewModel;
-        }
-
-        private void TabHeaderList_PreviewMouseMove(object sender, MouseEventArgs e)
-        {
-            if (e.LeftButton != MouseButtonState.Pressed || _draggedTab == null) return;
-            if (_draggedTab.IsRenaming) return;
-
-            var pos = e.GetPosition(null);
-            var diff = _dragStartPoint - pos;
-
-            if (Math.Abs(diff.X) > SystemParameters.MinimumHorizontalDragDistance ||
-                Math.Abs(diff.Y) > SystemParameters.MinimumVerticalDragDistance)
-            {
-                // Release mouse capture so DragDrop can take over
-                if (Mouse.Captured != null)
-                    Mouse.Captured.ReleaseMouseCapture();
-
-                var data = new DataObject("TerminalTab", _draggedTab);
-                DragDrop.DoDragDrop(TabHeaderList, data, DragDropEffects.Move);
-                _draggedTab = null;
-            }
-        }
-
-        private void TabHeaderList_DragOver(object sender, DragEventArgs e)
-        {
-            if (!e.Data.GetDataPresent("TerminalTab"))
-            {
-                e.Effects = DragDropEffects.None;
-            }
-            else
-            {
-                e.Effects = DragDropEffects.Move;
-            }
-            e.Handled = true;
-        }
-
-        private void TabHeaderList_Drop(object sender, DragEventArgs e)
-        {
-            if (!e.Data.GetDataPresent("TerminalTab")) return;
-
-            var source = e.Data.GetData("TerminalTab") as TerminalViewModel;
-            if (source == null) return;
-
-            // Find the target ListBoxItem under the drop point
-            var targetItem = FindAncestor<ListBoxItem>((DependencyObject)e.OriginalSource);
-            if (targetItem == null) return;
-
-            var target = targetItem.DataContext as TerminalViewModel;
-            if (target == null || target == source) return;
-
-            int oldIndex = _viewModel.Terminals.IndexOf(source);
-            int newIndex = _viewModel.Terminals.IndexOf(target);
-            _viewModel.MoveTerminal(oldIndex, newIndex);
-            e.Handled = true;
         }
 
         private static T FindAncestor<T>(DependencyObject current) where T : DependencyObject

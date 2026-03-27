@@ -1,4 +1,8 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -9,15 +13,17 @@ namespace MultiTerminalManagement.Views
 {
     public partial class CreateTerminalDialog : Window
     {
-        private readonly ObservableCollection<string> _savedPaths = new ObservableCollection<string>();
+        private readonly ObservableCollection<SavedPath> _savedPaths = new ObservableCollection<SavedPath>();
+        private readonly List<string> _existingTerminalNames;
 
         public string TerminalName { get; private set; }
         public TerminalType TerminalType { get; private set; }
         public string WorkingDirectory { get; private set; }
 
-        public CreateTerminalDialog()
+        public CreateTerminalDialog(IEnumerable<string> existingTerminalNames = null)
         {
             InitializeComponent();
+            _existingTerminalNames = existingTerminalNames?.ToList() ?? new List<string>();
             SavedPathsList.ItemsSource = _savedPaths;
             LoadSavedPaths();
             NameBox.Focus();
@@ -27,8 +33,31 @@ namespace MultiTerminalManagement.Views
         private void LoadSavedPaths()
         {
             _savedPaths.Clear();
-            foreach (var path in PathStore.Load())
-                _savedPaths.Add(path);
+            foreach (var sp in PathStore.Load())
+                _savedPaths.Add(sp);
+        }
+
+        /// <summary>
+        /// Generate next auto-incremented name: "Takako 01", "Takako 02", etc.
+        /// </summary>
+        private string GetNextName(string baseName)
+        {
+            // Find all existing names that match "baseName NN" pattern
+            var pattern = new Regex(
+                @"^" + Regex.Escape(baseName) + @"\s+(\d+)$",
+                RegexOptions.IgnoreCase);
+
+            int maxNum = 0;
+            foreach (var name in _existingTerminalNames)
+            {
+                var match = pattern.Match(name);
+                if (match.Success && int.TryParse(match.Groups[1].Value, out int num))
+                {
+                    if (num > maxNum) maxNum = num;
+                }
+            }
+
+            return $"{baseName} {(maxNum + 1):D2}";
         }
 
         private void Browse_Click(object sender, RoutedEventArgs e)
@@ -45,30 +74,40 @@ namespace MultiTerminalManagement.Views
             if (dialog.ShowDialog(win32Window) == System.Windows.Forms.DialogResult.OK)
             {
                 PathBox.Text = dialog.SelectedPath;
-                PathStore.Add(dialog.SelectedPath);
-                LoadSavedPaths();
+
+                // Auto-fill alias from folder name
+                var folderName = System.IO.Path.GetFileName(dialog.SelectedPath.TrimEnd('\\', '/'));
+                if (!string.IsNullOrEmpty(folderName))
+                    AliasBox.Text = folderName;
             }
         }
 
         private void ClearPath_Click(object sender, RoutedEventArgs e)
         {
             PathBox.Text = "";
+            AliasBox.Text = "";
         }
 
         private void SavedPath_Click(object sender, MouseButtonEventArgs e)
         {
-            if (sender is FrameworkElement fe && fe.DataContext is string path)
+            if (sender is FrameworkElement fe && fe.DataContext is SavedPath sp)
             {
-                PathBox.Text = path;
+                PathBox.Text = sp.Path;
+                AliasBox.Text = sp.Name;
+                NameBox.Text = GetNextName(sp.Name);
             }
         }
 
         private void RemoveSavedPath_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button btn && btn.Tag is string path)
+            if (sender is Button btn && btn.DataContext is SavedPath sp)
             {
-                PathStore.Remove(path);
-                if (PathBox.Text == path) PathBox.Text = "";
+                PathStore.Remove(sp.Path);
+                if (PathBox.Text == sp.Path)
+                {
+                    PathBox.Text = "";
+                    AliasBox.Text = "";
+                }
                 LoadSavedPaths();
             }
         }
@@ -81,9 +120,17 @@ namespace MultiTerminalManagement.Views
             string path = PathBox.Text?.Trim();
             WorkingDirectory = string.IsNullOrEmpty(path) ? null : path;
 
-            // Auto-save pasted/typed paths
+            // Auto-save path with alias
             if (!string.IsNullOrEmpty(path) && System.IO.Directory.Exists(path))
-                PathStore.Add(path);
+            {
+                var alias = AliasBox.Text?.Trim();
+                if (string.IsNullOrEmpty(alias))
+                {
+                    alias = System.IO.Path.GetFileName(path.TrimEnd('\\', '/'));
+                    if (string.IsNullOrEmpty(alias)) alias = "Terminal";
+                }
+                PathStore.Add(alias, path);
+            }
 
             DialogResult = true;
         }

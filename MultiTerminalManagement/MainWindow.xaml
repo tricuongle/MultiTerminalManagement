@@ -11,10 +11,8 @@
         PreviewKeyDown="Window_PreviewKeyDown">
 
     <Window.InputBindings>
-        <!-- Ctrl+Tab / Ctrl+Shift+Tab: cycle terminals -->
         <KeyBinding Key="Tab" Modifiers="Ctrl" Command="{Binding CycleTerminalCommand}"/>
         <KeyBinding Key="Tab" Modifiers="Ctrl+Shift" Command="{Binding CycleTerminalBackCommand}"/>
-        <!-- Ctrl+1..9: go to terminal by number -->
         <KeyBinding Key="D1" Modifiers="Ctrl" Command="{Binding GoToTerminalCommand}" CommandParameter="1"/>
         <KeyBinding Key="D2" Modifiers="Ctrl" Command="{Binding GoToTerminalCommand}" CommandParameter="2"/>
         <KeyBinding Key="D3" Modifiers="Ctrl" Command="{Binding GoToTerminalCommand}" CommandParameter="3"/>
@@ -29,25 +27,14 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Toolbar -->
-        <Border Grid.Row="0" Background="#2d2d2d" Padding="6">
+        <!-- Single unified header bar: [+ New] [Tabs...] ... [Font] [Grid controls] [Grid toggle] -->
+        <Border Grid.Row="0" Background="#2d2d2d" Padding="4,3">
             <DockPanel>
-                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal">
-                    <Button Content="+ New Terminal"
-                            Command="{Binding AddTerminalCommand}"
-                            Background="#0e639c"
-                            Foreground="White"
-                            Padding="12,4"
-                            BorderThickness="0"
-                            Cursor="Hand"/>
-                </StackPanel>
-
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <!-- Font size -->
+                <!-- Right side: controls -->
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="Font:" Foreground="#999" VerticalAlignment="Center" Margin="0,0,4,0"/>
                     <ComboBox x:Name="FontSizeCombo" Width="50"
                               SelectedIndex="2"
@@ -60,9 +47,8 @@
                         <ComboBoxItem Content="20"/>
                     </ComboBox>
 
-                    <Border Width="1" Background="#555" Margin="10,2"/>
+                    <Border Width="1" Background="#555" Margin="8,2"/>
 
-                    <!-- Grid layout controls -->
                     <TextBlock Text="Rows:" Foreground="#999" VerticalAlignment="Center" Margin="0,0,4,0"
                                Visibility="{Binding IsGridMode, Converter={StaticResource BoolToVis}}"/>
                     <ComboBox x:Name="RowsCombo" SelectedIndex="1" Width="45"
@@ -74,8 +60,7 @@
                         <ComboBoxItem Content="4"/>
                         <ComboBoxItem Content="5"/>
                     </ComboBox>
-
-                    <TextBlock Text=" x Cols:" Foreground="#999" VerticalAlignment="Center" Margin="4,0,4,0"
+                    <TextBlock Text="x" Foreground="#999" VerticalAlignment="Center" Margin="4,0"
                                Visibility="{Binding IsGridMode, Converter={StaticResource BoolToVis}}"/>
                     <ComboBox x:Name="ColumnsCombo" SelectedIndex="1" Width="45"
                               SelectionChanged="ColumnsCombo_SelectionChanged"
@@ -90,118 +75,123 @@
                     <ToggleButton Content="Grid"
                                   IsChecked="{Binding IsGridMode}"
                                   Foreground="White"
-                                  Padding="12,4"
-                                  Margin="8,0,0,0"
+                                  Padding="10,3"
+                                  Margin="6,0,0,0"
                                   BorderThickness="0"
                                   Cursor="Hand"/>
                 </StackPanel>
 
-                <Border/>
+                <!-- Left side: + button then tabs -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="+"
+                            Command="{Binding AddTerminalCommand}"
+                            Background="#0e639c"
+                            Foreground="White"
+                            FontWeight="Bold"
+                            FontSize="14"
+                            Padding="8,1"
+                            BorderThickness="0"
+                            Cursor="Hand"
+                            ToolTip="New Terminal"
+                            Margin="0,0,4,0"/>
+                </StackPanel>
+
+                <!-- Tabs fill remaining space -->
+                <ListBox x:Name="TabHeaderList"
+                         ItemsSource="{Binding Terminals}"
+                         SelectedItem="{Binding SelectedTerminal}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Padding="0"
+                         VerticalAlignment="Center"
+                         MouseRightButtonUp="TabHeaderList_MouseRightButtonUp"
+                         Visibility="{Binding IsGridMode, Converter={StaticResource InverseBoolToVis}}">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="TabBorder"
+                                                Background="#2d2d2d"
+                                                BorderBrush="#3e3e3e"
+                                                BorderThickness="1"
+                                                CornerRadius="3"
+                                                Margin="0,0,2,0"
+                                                Padding="5,2"
+                                                Cursor="Hand">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="TabBorder" Property="Background" Value="#1e1e1e"/>
+                                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="#0e639c"/>
+                                            </Trigger>
+                                            <MultiTrigger>
+                                                <MultiTrigger.Conditions>
+                                                    <Condition Property="IsMouseOver" Value="True"/>
+                                                    <Condition Property="IsSelected" Value="False"/>
+                                                </MultiTrigger.Conditions>
+                                                <Setter TargetName="TabBorder" Property="Background" Value="#383838"/>
+                                            </MultiTrigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <!-- Accent dot -->
+                                <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
+                                         Fill="{Binding AccentColor, Converter={StaticResource StringToBrush}}"/>
+                                <!-- Index -->
+                                <TextBlock Text="{Binding DisplayIndex}" Foreground="#888"
+                                           FontSize="10" FontFamily="Consolas"
+                                           VerticalAlignment="Center" Margin="0,0,3,0"/>
+                                <!-- Type badge -->
+                                <Border Background="{Binding AccentColor, Converter={StaticResource StringToBrush}}"
+                                        CornerRadius="2" Padding="3,0" VerticalAlignment="Center" Margin="0,0,4,0">
+                                    <TextBlock Text="{Binding TypeIcon}" Foreground="White"
+                                               FontSize="9" FontFamily="Consolas" FontWeight="Bold"/>
+                                </Border>
+                                <!-- Name (normal) -->
+                                <TextBlock x:Name="TabNameText" Text="{Binding Name}" Foreground="#E0E0E0"
+                                           VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold"
+                                           MouseLeftButtonDown="TabNameText_MouseLeftButtonDown"/>
+                                <!-- Name (rename) -->
+                                <TextBox x:Name="TabRenameBox" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                                         Visibility="Collapsed"
+                                         Background="#1e1e1e" Foreground="#E0E0E0" CaretBrush="#E0E0E0"
+                                         BorderBrush="#0e639c" BorderThickness="1"
+                                         FontSize="11" MinWidth="60" Padding="2,0"
+                                         KeyDown="TabRenameBox_KeyDown"
+                                         LostFocus="TabRenameBox_LostFocus"/>
+                                <!-- Close button -->
+                                <Button Content=" &#x2715;" FontSize="9"
+                                        Command="{Binding DataContext.CloseTerminalCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                        CommandParameter="{Binding}"
+                                        Background="Transparent" Foreground="#888"
+                                        BorderThickness="0" Cursor="Hand"
+                                        Margin="3,0,0,0" Padding="2,0"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
             </DockPanel>
         </Border>
 
-        <!-- Tab header strip (visible in tab mode only) -->
-        <Border Grid.Row="1"
-                Visibility="{Binding IsGridMode, Converter={StaticResource InverseBoolToVis}}">
-            <ListBox x:Name="TabHeaderList"
-                     ItemsSource="{Binding Terminals}"
-                     SelectedItem="{Binding SelectedTerminal}"
-                     Background="#2d2d2d"
-                     BorderThickness="0"
-                     Padding="4,4,4,0"
-                     AllowDrop="True"
-                     PreviewMouseLeftButtonDown="TabHeaderList_PreviewMouseLeftButtonDown"
-                     PreviewMouseMove="TabHeaderList_PreviewMouseMove"
-                     PreviewDrop="TabHeaderList_Drop"
-                     PreviewDragOver="TabHeaderList_DragOver"
-                     MouseRightButtonUp="TabHeaderList_MouseRightButtonUp">
-                <ListBox.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal"/>
-                    </ItemsPanelTemplate>
-                </ListBox.ItemsPanel>
-                <ListBox.ItemContainerStyle>
-                    <Style TargetType="ListBoxItem">
-                        <Setter Property="AllowDrop" Value="True"/>
-                        <Setter Property="Template">
-                            <Setter.Value>
-                                <ControlTemplate TargetType="ListBoxItem">
-                                    <Border x:Name="TabBorder"
-                                            Background="#2d2d2d"
-                                            BorderBrush="#3e3e3e"
-                                            BorderThickness="1,1,1,0"
-                                            Margin="0,0,2,0"
-                                            Padding="6,4"
-                                            Cursor="Hand">
-                                        <ContentPresenter/>
-                                    </Border>
-                                    <ControlTemplate.Triggers>
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter TargetName="TabBorder" Property="Background" Value="#1e1e1e"/>
-                                            <Setter TargetName="TabBorder" Property="BorderBrush" Value="#0e639c"/>
-                                            <Setter TargetName="TabBorder" Property="BorderThickness" Value="1,2,1,0"/>
-                                        </Trigger>
-                                        <MultiTrigger>
-                                            <MultiTrigger.Conditions>
-                                                <Condition Property="IsMouseOver" Value="True"/>
-                                                <Condition Property="IsSelected" Value="False"/>
-                                            </MultiTrigger.Conditions>
-                                            <Setter TargetName="TabBorder" Property="Background" Value="#383838"/>
-                                        </MultiTrigger>
-                                    </ControlTemplate.Triggers>
-                                </ControlTemplate>
-                            </Setter.Value>
-                        </Setter>
-                        <!-- Context menu is created in code-behind via MouseRightButtonUp -->
-                    </Style>
-                </ListBox.ItemContainerStyle>
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <StackPanel Orientation="Horizontal">
-                            <!-- Accent dot -->
-                            <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center"
-                                     Fill="{Binding AccentColor, Converter={StaticResource StringToBrush}}"/>
-                            <!-- Index -->
-                            <TextBlock Text="{Binding DisplayIndex}" Foreground="#888"
-                                       FontSize="11" FontFamily="Consolas"
-                                       VerticalAlignment="Center" Margin="0,0,4,0"/>
-                            <!-- Type badge -->
-                            <Border Background="{Binding AccentColor, Converter={StaticResource StringToBrush}}"
-                                    CornerRadius="3" Padding="4,1" VerticalAlignment="Center" Margin="0,0,6,0">
-                                <TextBlock Text="{Binding TypeIcon}" Foreground="White"
-                                           FontSize="9" FontFamily="Consolas" FontWeight="Bold"/>
-                            </Border>
-                            <!-- Name (normal) -->
-                            <TextBlock x:Name="TabNameText" Text="{Binding Name}" Foreground="#E0E0E0"
-                                       VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"
-                                       MouseLeftButtonDown="TabNameText_MouseLeftButtonDown"/>
-                            <!-- Name (rename) -->
-                            <TextBox x:Name="TabRenameBox" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
-                                     Visibility="Collapsed"
-                                     Background="#1e1e1e" Foreground="#E0E0E0" CaretBrush="#E0E0E0"
-                                     BorderBrush="#0e639c" BorderThickness="1"
-                                     FontSize="12" MinWidth="60" Padding="2,1"
-                                     KeyDown="TabRenameBox_KeyDown"
-                                     LostFocus="TabRenameBox_LostFocus"/>
-                            <!-- Close button -->
-                            <Button Content="  &#x2715;" FontSize="10"
-                                    Command="{Binding DataContext.CloseTerminalCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
-                                    CommandParameter="{Binding}"
-                                    Background="Transparent" Foreground="#888"
-                                    BorderThickness="0" Cursor="Hand"
-                                    Margin="4,0,0,0" Padding="2,0"/>
-                        </StackPanel>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-        </Border>
-
-        <!-- Terminal host - all terminal controls live here permanently -->
-        <Grid x:Name="TerminalHost" Grid.Row="2"/>
+        <!-- Terminal host -->
+        <Grid x:Name="TerminalHost" Grid.Row="1"/>
 
         <!-- Empty state -->
-        <TextBlock Grid.Row="2"
-                   Text="Click '+ New Terminal' to get started"
+        <TextBlock Grid.Row="1"
+                   Text="Click '+' to get started"
                    Foreground="#666"
                    FontSize="16"
                    HorizontalAlignment="Center"
