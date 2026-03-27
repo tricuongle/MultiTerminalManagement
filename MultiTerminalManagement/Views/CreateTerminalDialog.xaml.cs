@@ -1,32 +1,37 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using System.Windows.Interop;
 using MultiTerminalManagement.Models;
 
 namespace MultiTerminalManagement.Views
 {
+    public class ColorOption
+    {
+        public string Color { get; set; }
+        public string Name { get; set; }
+    }
+
     public partial class CreateTerminalDialog : Window
     {
-        // Profile support added
-        private readonly ObservableCollection<SavedPath> _savedPaths = new ObservableCollection<SavedPath>();
         private readonly List<string> _existingTerminalNames;
+        private List<TerminalProfile> _profiles;
+        private TerminalProfile _selectedProfile;
 
         public string TerminalName { get; private set; }
         public TerminalType TerminalType { get; private set; }
         public string WorkingDirectory { get; private set; }
+        public string StartupCommand { get; private set; }
+        public string AccentColor { get; private set; }
 
         public CreateTerminalDialog(IEnumerable<string> existingTerminalNames = null)
         {
             InitializeComponent();
             _existingTerminalNames = existingTerminalNames?.ToList() ?? new List<string>();
-            SavedPathsList.ItemsSource = _savedPaths;
-            LoadSavedPaths();
+
             LoadProfiles();
             NameBox.Focus();
             NameBox.SelectAll();
@@ -34,37 +39,30 @@ namespace MultiTerminalManagement.Views
 
         private void LoadProfiles()
         {
+            _profiles = TerminalProfileStore.Load();
+
             // Keep "(None)" as first item, clear the rest
             while (ProfileCombo.Items.Count > 1)
                 ProfileCombo.Items.RemoveAt(1);
 
-            foreach (var p in TerminalProfileStore.Load())
+            foreach (var p in _profiles)
                 ProfileCombo.Items.Add(new ComboBoxItem { Content = p.Name, Tag = p });
         }
 
         private void ProfileCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (ProfileCombo.SelectedIndex <= 0) return;
+            if (ProfileCombo.SelectedIndex <= 0)
+            {
+                _selectedProfile = null;
+                return;
+            }
             if (ProfileCombo.SelectedItem is ComboBoxItem ci && ci.Tag is TerminalProfile profile)
             {
+                _selectedProfile = profile;
                 NameBox.Text = GetNextName(profile.Name);
                 TypeCombo.SelectedIndex = profile.TerminalType == TerminalType.PowerShell ? 1 : 0;
                 PathBox.Text = profile.DefaultWorkingDirectory ?? "";
             }
-        }
-
-        private void ManageProfiles_Click(object sender, RoutedEventArgs e)
-        {
-            var dlg = new ProfileManagerDialog { Owner = this };
-            dlg.ShowDialog();
-            LoadProfiles();
-        }
-
-        private void LoadSavedPaths()
-        {
-            _savedPaths.Clear();
-            foreach (var sp in PathStore.Load())
-                _savedPaths.Add(sp);
         }
 
         /// <summary>
@@ -72,7 +70,6 @@ namespace MultiTerminalManagement.Views
         /// </summary>
         private string GetNextName(string baseName)
         {
-            // Find all existing names that match "baseName NN" pattern
             var pattern = new Regex(
                 @"^" + Regex.Escape(baseName) + @"\s+(\d+)$",
                 RegexOptions.IgnoreCase);
@@ -104,42 +101,12 @@ namespace MultiTerminalManagement.Views
             if (dialog.ShowDialog(win32Window) == System.Windows.Forms.DialogResult.OK)
             {
                 PathBox.Text = dialog.SelectedPath;
-
-                // Auto-fill alias from folder name
-                var folderName = System.IO.Path.GetFileName(dialog.SelectedPath.TrimEnd('\\', '/'));
-                if (!string.IsNullOrEmpty(folderName))
-                    AliasBox.Text = folderName;
             }
         }
 
         private void ClearPath_Click(object sender, RoutedEventArgs e)
         {
             PathBox.Text = "";
-            AliasBox.Text = "";
-        }
-
-        private void SavedPath_Click(object sender, MouseButtonEventArgs e)
-        {
-            if (sender is FrameworkElement fe && fe.DataContext is SavedPath sp)
-            {
-                PathBox.Text = sp.Path;
-                AliasBox.Text = sp.Name;
-                NameBox.Text = GetNextName(sp.Name);
-            }
-        }
-
-        private void RemoveSavedPath_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button btn && btn.DataContext is SavedPath sp)
-            {
-                PathStore.Remove(sp.Path);
-                if (PathBox.Text == sp.Path)
-                {
-                    PathBox.Text = "";
-                    AliasBox.Text = "";
-                }
-                LoadSavedPaths();
-            }
         }
 
         private void Create_Click(object sender, RoutedEventArgs e)
@@ -150,16 +117,11 @@ namespace MultiTerminalManagement.Views
             string path = PathBox.Text?.Trim();
             WorkingDirectory = string.IsNullOrEmpty(path) ? null : path;
 
-            // Auto-save path with alias
-            if (!string.IsNullOrEmpty(path) && System.IO.Directory.Exists(path))
+            // Read StartupCommand and AccentColor from profile
+            if (_selectedProfile != null)
             {
-                var alias = AliasBox.Text?.Trim();
-                if (string.IsNullOrEmpty(alias))
-                {
-                    alias = System.IO.Path.GetFileName(path.TrimEnd('\\', '/'));
-                    if (string.IsNullOrEmpty(alias)) alias = "Terminal";
-                }
-                PathStore.Add(alias, path);
+                StartupCommand = _selectedProfile.StartupCommand;
+                AccentColor = _selectedProfile.IconColor;
             }
 
             DialogResult = true;

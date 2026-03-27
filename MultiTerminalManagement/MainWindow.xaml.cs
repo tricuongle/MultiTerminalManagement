@@ -20,6 +20,7 @@ namespace MultiTerminalManagement
         private readonly Dictionary<TerminalViewModel, TerminalControl> _terminalControls = new();
         private TerminalViewModel _zoomedTerminal;
         private bool _initialized;
+        private BroadcastWindow _broadcastWindow;
 
         public MainWindow()
         {
@@ -28,7 +29,6 @@ namespace MultiTerminalManagement
             DataContext = _viewModel;
 
             LoadSettings();
-            LoadProfilesDropdown();
 
             _viewModel.Terminals.CollectionChanged += Terminals_CollectionChanged;
             _viewModel.PropertyChanged += ViewModel_PropertyChanged;
@@ -483,54 +483,157 @@ namespace MultiTerminalManagement
             _viewModel.CloseAllTerminals();
         }
 
-        // ---- Profiles dropdown ----
+        // ---- Tools dropdown menu ----
 
-        private void LoadProfilesDropdown()
+        private void ToolsButton_Click(object sender, RoutedEventArgs e)
         {
-            while (ProfilesDropdown.Items.Count > 1)
-                ProfilesDropdown.Items.RemoveAt(1);
+            var menu = new ContextMenu();
 
-            foreach (var p in TerminalProfileStore.Load())
+            // Profiles submenu (quick-create + manage)
+            var profilesItem = new MenuItem { Header = "Profiles" };
+            var profiles = TerminalProfileStore.Load();
+            if (profiles.Count == 0)
             {
-                ProfilesDropdown.Items.Add(new ComboBoxItem { Content = p.Name, Tag = p });
+                var emptyItem = new MenuItem { Header = "(No profiles)", IsEnabled = false };
+                profilesItem.Items.Add(emptyItem);
             }
+            else
+            {
+                foreach (var p in profiles)
+                {
+                    var profileItem = new MenuItem { Header = p.Name, Tag = p };
+                    profileItem.Click += (s, _) =>
+                    {
+                        if (s is MenuItem mi && mi.Tag is TerminalProfile prof)
+                            _viewModel.CreateTerminalFromProfile(prof);
+                    };
+                    profilesItem.Items.Add(profileItem);
+                }
+            }
+            profilesItem.Items.Add(new Separator());
+            var manageProfilesItem = new MenuItem { Header = "Manage Profiles..." };
+            manageProfilesItem.Click += (s, _) =>
+            {
+                var dlg = new ProfileManagerDialog { Owner = this };
+                dlg.ShowDialog();
+            };
+            profilesItem.Items.Add(manageProfilesItem);
+            menu.Items.Add(profilesItem);
+
+            menu.Items.Add(new Separator());
+
+            // Broadcast → open popup window
+            var broadcastItem = new MenuItem { Header = "Broadcast" };
+            broadcastItem.Click += (s, _) => OpenBroadcastWindow();
+            menu.Items.Add(broadcastItem);
+
+            menu.Items.Add(new Separator());
+
+            // Snippets
+            var snippetsItem = new MenuItem { Header = "Snippets" };
+            snippetsItem.Click += (s, _) =>
+            {
+                var dlg = new SnippetManagerDialog { Owner = this };
+                dlg.ShowDialog();
+            };
+            menu.Items.Add(snippetsItem);
+
+            // Sessions
+            var sessionsItem = new MenuItem { Header = "Sessions" };
+            sessionsItem.Click += (s, _) =>
+            {
+                var dlg = new SessionManagerDialog { Owner = this };
+                dlg.SetCurrentSessionCapture(_viewModel.CaptureCurrentSession(""));
+                if (dlg.ShowDialog() == true && dlg.SessionToLoad != null)
+                {
+                    _viewModel.RestoreSession(dlg.SessionToLoad);
+                    LoadSettings();
+                    SelectComboByContent(ColumnsCombo, _viewModel.GridColumns.ToString());
+                    SelectComboByContent(RowsCombo, _viewModel.GridRows.ToString());
+                    SelectComboByContent(FontSizeCombo, _viewModel.FontSize.ToString());
+                }
+            };
+            menu.Items.Add(sessionsItem);
+
+            menu.Items.Add(new Separator());
+
+            // Theme Settings
+            var themeItem = new MenuItem { Header = "Theme Settings..." };
+            themeItem.Click += (s, _) =>
+            {
+                var dlg = new ThemeSettingsDialog { Owner = this };
+                dlg.ShowDialog();
+            };
+            menu.Items.Add(themeItem);
+
+            menu.Items.Add(new Separator());
+
+            // Help
+            var helpItem = new MenuItem { Header = "Help" };
+            helpItem.Click += (s, _) => ShowHelp();
+            menu.Items.Add(helpItem);
+
+            menu.PlacementTarget = ToolsButton;
+            menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+            menu.IsOpen = true;
         }
 
-        private void ProfilesDropdown_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void OpenBroadcastWindow()
         {
-            if (ProfilesDropdown.SelectedIndex <= 0) return;
-
-            if (ProfilesDropdown.SelectedItem is ComboBoxItem ci && ci.Tag is TerminalProfile profile)
+            if (_broadcastWindow != null)
             {
-                _viewModel.CreateTerminalFromProfile(profile);
+                _broadcastWindow.Activate();
+                return;
             }
 
-            // Reset to header item
-            ProfilesDropdown.SelectedIndex = 0;
-        }
-
-        // ---- Snippet Manager ----
-
-        private void ManageSnippets_Click(object sender, RoutedEventArgs e)
-        {
-            var dlg = new SnippetManagerDialog { Owner = this };
-            dlg.ShowDialog();
-        }
-
-        // ---- Session Manager ----
-
-        private void ManageSessions_Click(object sender, RoutedEventArgs e)
-        {
-            var dlg = new SessionManagerDialog { Owner = this };
-            dlg.SetCurrentSessionCapture(_viewModel.CaptureCurrentSession(""));
-            if (dlg.ShowDialog() == true && dlg.SessionToLoad != null)
+            _viewModel.IsBroadcastMode = true;
+            _broadcastWindow = new BroadcastWindow(_viewModel.Terminals) { Owner = this };
+            _broadcastWindow.SendRequested += text =>
             {
-                _viewModel.RestoreSession(dlg.SessionToLoad);
-                LoadSettings(); // Sync combo boxes
-                SelectComboByContent(ColumnsCombo, _viewModel.GridColumns.ToString());
-                SelectComboByContent(RowsCombo, _viewModel.GridRows.ToString());
-                SelectComboByContent(FontSizeCombo, _viewModel.FontSize.ToString());
-            }
+                foreach (var kvp in _terminalControls)
+                {
+                    if (kvp.Key.IsBroadcastTarget)
+                        kvp.Value.SendBroadcastCommand(text);
+                }
+            };
+            _broadcastWindow.Closed += (s, _) =>
+            {
+                _viewModel.IsBroadcastMode = false;
+                _broadcastWindow = null;
+            };
+            _broadcastWindow.Show();
+        }
+
+        private void ShowHelp()
+        {
+            MessageBox.Show(
+                "HƯỚNG DẪN SỬ DỤNG - MULTI TERMINAL MANAGER\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "CÁC PHÍM TẮT:\n" +
+                "  Ctrl+P          Chuyển terminal nhanh\n" +
+                "  Ctrl+Tab        Terminal tiếp theo\n" +
+                "  Ctrl+Shift+Tab  Terminal trước đó\n" +
+                "  Ctrl+1~9        Nhảy đến terminal theo số\n" +
+                "  Ctrl+F          Tìm kiếm trong output\n" +
+                "  Ctrl+Shift+S    Mở snippet picker\n" +
+                "  Ctrl+C          Ngắt lệnh (khi ô nhập trống)\n" +
+                "  Ctrl+L          Xoá màn hình terminal\n" +
+                "  F3 / Shift+F3   Kết quả tìm kiếm tiếp/trước\n\n" +
+                "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n" +
+                "TOOLS MENU:\n" +
+                "  Profiles     Tạo nhanh terminal từ profile đã lưu\n" +
+                "  Broadcast    Gửi cùng lệnh đến nhiều terminal\n" +
+                "  Snippets     Quản lý các lệnh hay dùng\n" +
+                "  Sessions     Lưu/khôi phục workspace\n" +
+                "  Theme        Tuỳ chỉnh màu sắc giao diện\n\n" +
+                "TÌM KIẾM (Ctrl+F):\n" +
+                "  • Nhấn Ctrl+F để mở thanh tìm kiếm\n" +
+                "  • F3 = kết quả tiếp, Shift+F3 = kết quả trước\n\n" +
+                "THÔNG BÁO HOÀN THÀNH LỆNH:\n" +
+                "  • Khi lệnh chạy > 10 giây và bạn ở tab khác\n" +
+                "    → thông báo Windows sẽ hiện ra\n" +
+                "  • Chấm xanh lá trên tab = lệnh đã hoàn thành",
+                "Hướng dẫn sử dụng", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void ColumnsCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)

@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
+using MultiTerminalManagement.Models;
 
 namespace MultiTerminalManagement
 {
@@ -23,6 +24,29 @@ namespace MultiTerminalManagement
                 System.IO.File.AppendAllText("crash.log",
                     $"[{DateTime.Now}] FATAL: {args.ExceptionObject}\n\n");
             };
+
+            ApplyTheme(AppSettings.Load());
+        }
+
+        public static void ApplyTheme(AppSettings settings)
+        {
+            var res = Current.Resources;
+            SetBrush(res, "ThemeAccent", settings.ThemeAccentColor);
+            SetBrush(res, "ThemeHeaderBg", settings.ThemeHeaderBg);
+            SetBrush(res, "ThemeMainBg", settings.ThemeMainBg);
+            SetBrush(res, "ThemeInputBg", settings.ThemeInputBg);
+            SetBrush(res, "ThemeText", settings.ThemeTextColor);
+            SetBrush(res, "ThemeMutedText", settings.ThemeMutedText);
+        }
+
+        private static void SetBrush(ResourceDictionary res, string key, string hex)
+        {
+            try
+            {
+                var color = (Color)ColorConverter.ConvertFromString(hex);
+                res[key] = new SolidColorBrush(color);
+            }
+            catch { }
         }
     }
 

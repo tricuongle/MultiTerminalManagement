@@ -106,9 +106,13 @@ namespace MultiTerminalManagement.ViewModels
 
             if (dialog.ShowDialog() == true)
             {
-                var vm = new TerminalViewModel(dialog.TerminalName, dialog.TerminalType, dialog.WorkingDirectory, Terminals.Count);
+                var vm = new TerminalViewModel(dialog.TerminalName, dialog.TerminalType, dialog.WorkingDirectory, Terminals.Count, dialog.StartupCommand);
+                if (!string.IsNullOrEmpty(dialog.AccentColor))
+                    vm.AccentColor = dialog.AccentColor;
                 Terminals.Add(vm);
                 SelectedTerminal = vm;
+                if (IsBroadcastMode)
+                    vm.IsBroadcastModeActive = true;
             }
         }
 
@@ -189,6 +193,8 @@ namespace MultiTerminalManagement.ViewModels
                 profile.DefaultWorkingDirectory,
                 Terminals.Count,
                 profile.StartupCommand);
+            if (!string.IsNullOrEmpty(profile.IconColor))
+                vm.AccentColor = profile.IconColor;
             Terminals.Add(vm);
             SelectedTerminal = vm;
             if (IsBroadcastMode)

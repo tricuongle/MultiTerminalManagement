@@ -7,5 +7,15 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <local:InverseBooleanToVisibilityConverter x:Key="InverseBoolToVis"/>
         <local:StringToBrushConverter x:Key="StringToBrush"/>
+
+        <!-- Theme brushes (defaults, updated at runtime by ApplyTheme) -->
+        <SolidColorBrush x:Key="ThemeAccent" Color="#0e639c"/>
+        <SolidColorBrush x:Key="ThemeHeaderBg" Color="#2d2d2d"/>
+        <SolidColorBrush x:Key="ThemeMainBg" Color="#1e1e1e"/>
+        <SolidColorBrush x:Key="ThemeInputBg" Color="#252526"/>
+        <SolidColorBrush x:Key="ThemeText" Color="#E0E0E0"/>
+        <SolidColorBrush x:Key="ThemeMutedText" Color="#999999"/>
+        <SolidColorBrush x:Key="ThemeBorder" Color="#3e3e3e"/>
+        <SolidColorBrush x:Key="ThemeButtonBg" Color="#3c3c3c"/>
     </Application.Resources>
 </Application>

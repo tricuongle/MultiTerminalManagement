@@ -89,7 +89,13 @@ namespace MultiTerminalManagement.Views
 
         private async System.Threading.Tasks.Task SendStartupCommandAsync(string command)
         {
-            await System.Threading.Tasks.Task.Delay(500);
+            // Poll for terminal readiness (max 5s)
+            for (int i = 0; i < 50; i++)
+            {
+                await System.Threading.Tasks.Task.Delay(100);
+                if (_termControl?.ConPTYTerm != null) break;
+            }
+            await System.Threading.Tasks.Task.Delay(300); // buffer for shell prompt
             foreach (char c in command)
                 WriteToConPTY(c.ToString());
             WriteToConPTY("\r");

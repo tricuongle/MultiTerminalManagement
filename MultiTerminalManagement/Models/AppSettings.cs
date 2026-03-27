@@ -13,6 +13,14 @@ namespace MultiTerminalManagement.Models
         public bool NotifyOnCommandCompletion { get; set; } = true;
         public int NotificationThresholdSeconds { get; set; } = 10;
 
+        // Theme colors
+        public string ThemeAccentColor { get; set; } = "#0e639c";
+        public string ThemeHeaderBg { get; set; } = "#2d2d2d";
+        public string ThemeMainBg { get; set; } = "#1e1e1e";
+        public string ThemeInputBg { get; set; } = "#252526";
+        public string ThemeTextColor { get; set; } = "#E0E0E0";
+        public string ThemeMutedText { get; set; } = "#999999";
+
         private static readonly string FilePath = Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory, "settings.json");
 

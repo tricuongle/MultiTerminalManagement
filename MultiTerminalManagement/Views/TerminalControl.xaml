@@ -1,7 +1,7 @@
 <UserControl x:Class="MultiTerminalManagement.Views.TerminalControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Background="#1e1e1e"
+             Background="{DynamicResource ThemeMainBg}"
              Loaded="OnLoaded">
 
     <!-- Outer border: accent left strip + focus border -->
@@ -20,7 +20,7 @@
                 </Grid.RowDefinitions>
 
                 <!-- Grid mode header bar -->
-                <DockPanel x:Name="HeaderBar" Grid.Row="0" Background="#2d2d2d" Visibility="Collapsed"
+                <DockPanel x:Name="HeaderBar" Grid.Row="0" Background="{DynamicResource ThemeHeaderBg}" Visibility="Collapsed"
                            MouseLeftButtonDown="HeaderBar_MouseLeftButtonDown">
                     <!-- Close button (far right, red tint) -->
                     <Button DockPanel.Dock="Right" Content="  X  " FontSize="10"
@@ -33,7 +33,7 @@
                     <!-- Zoom button -->
                     <Button x:Name="ZoomButton" DockPanel.Dock="Right" Content="&#x26F6;" FontSize="12"
                             Click="ZoomButton_Click"
-                            Background="Transparent" Foreground="#999"
+                            Background="Transparent" Foreground="{DynamicResource ThemeText}"
                             BorderThickness="0" Cursor="Hand"
                             Padding="8,2" ToolTip="Zoom in/out"/>
                     <!-- Broadcast checkbox -->
@@ -57,7 +57,7 @@
                     <!-- Header content: Index + Type Badge + Name -->
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0,0,0">
                         <!-- Index number -->
-                        <TextBlock Text="{Binding DisplayIndex}" Foreground="#888"
+                        <TextBlock Text="{Binding DisplayIndex}" Foreground="{DynamicResource ThemeMutedText}"
                                    FontSize="11" FontFamily="Consolas"
                                    VerticalAlignment="Center" Margin="0,0,6,0"/>
 
@@ -69,7 +69,7 @@
                         </Border>
 
                         <!-- Terminal name (normal mode) -->
-                        <TextBlock x:Name="HeaderNameText" Text="{Binding Name}" Foreground="#E0E0E0"
+                        <TextBlock x:Name="HeaderNameText" Text="{Binding Name}" Foreground="{DynamicResource ThemeText}"
                                    FontSize="12" FontWeight="SemiBold"
                                    VerticalAlignment="Center" Padding="0,3"
                                    MouseLeftButtonDown="HeaderNameText_MouseLeftButtonDown"/>
@@ -77,8 +77,9 @@
                         <!-- Terminal name (rename mode) -->
                         <TextBox x:Name="HeaderRenameBox" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
                                  Visibility="Collapsed"
-                                 Background="#1e1e1e" Foreground="#E0E0E0" CaretBrush="#E0E0E0"
-                                 BorderBrush="#0e639c" BorderThickness="1"
+                                 Background="{DynamicResource ThemeMainBg}" Foreground="{DynamicResource ThemeText}"
+                                 CaretBrush="{DynamicResource ThemeText}"
+                                 BorderBrush="{DynamicResource ThemeAccent}" BorderThickness="1"
                                  FontSize="12" FontWeight="SemiBold"
                                  VerticalAlignment="Center" Padding="2,2" MinWidth="80"
                                  KeyDown="HeaderRenameBox_KeyDown"
@@ -93,7 +94,7 @@
                 <Grid x:Name="HostGrid" Grid.Row="2" MouseLeftButtonDown="HostGrid_MouseLeftButtonDown"/>
 
                 <!-- Input bar -->
-                <Border Grid.Row="3" Background="#252526" BorderBrush="#3e3e3e" BorderThickness="0,1,0,0">
+                <Border Grid.Row="3" Background="{DynamicResource ThemeInputBg}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="0,1,0,0">
                     <Grid Margin="4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -112,12 +113,12 @@
 
                         <TextBox x:Name="InputBox"
                                  Grid.Column="1"
-                                 Background="#1e1e1e"
+                                 Background="{DynamicResource ThemeMainBg}"
                                  Foreground="#CCCCCC"
                                  CaretBrush="#CCCCCC"
                                  FontFamily="Consolas"
                                  FontSize="14"
-                                 BorderBrush="#3e3e3e"
+                                 BorderBrush="{DynamicResource ThemeBorder}"
                                  BorderThickness="1"
                                  Padding="6,4"
                                  AcceptsReturn="True"
@@ -137,18 +138,19 @@
                                 <Button x:Name="SnippetButton"
                                         Content="{}{}"
                                         Click="SnippetButton_Click"
-                                        Background="#252526"
-                                        Foreground="#E0E0E0"
+                                        Background="{DynamicResource ThemeButtonBg}"
+                                        Foreground="#FFD580"
                                         FontSize="12"
+                                        FontWeight="Bold"
                                         Padding="6,4"
-                                        BorderThickness="0"
+                                        BorderBrush="#555" BorderThickness="1"
                                         Cursor="Hand"
                                         ToolTip="Insert Snippet (Ctrl+Shift+S)"
                                         Margin="0,0,4,0"/>
                                 <Button x:Name="SendButton"
                                         Content="Send"
                                         Click="SendButton_Click"
-                                        Background="#0e639c"
+                                        Background="{DynamicResource ThemeAccent}"
                                         Foreground="White"
                                         FontSize="12"
                                         Padding="12,4"
@@ -157,12 +159,12 @@
                                         ToolTip="Send (Enter)"/>
                             </StackPanel>
                             <TextBlock Text="Enter = Send"
-                                       Foreground="#666"
+                                       Foreground="{DynamicResource ThemeMutedText}"
                                        FontSize="9"
                                        HorizontalAlignment="Center"
                                        Margin="0,2,0,0"/>
                             <TextBlock Text="Shift+Enter = newline"
-                                       Foreground="#666"
+                                       Foreground="{DynamicResource ThemeMutedText}"
                                        FontSize="9"
                                        HorizontalAlignment="Center"/>
                         </StackPanel>

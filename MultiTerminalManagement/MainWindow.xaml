@@ -6,7 +6,7 @@
         Title="Multi Terminal Manager"
         Height="700" Width="1100"
         MinHeight="400" MinWidth="600"
-        Background="#1e1e1e"
+        Background="{DynamicResource ThemeMainBg}"
         Closing="Window_Closing"
         PreviewKeyDown="Window_PreviewKeyDown">
 
@@ -30,12 +30,12 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- Single unified header bar: [+ New] [Tabs...] ... [Font] [Grid controls] [Grid toggle] -->
-        <Border Grid.Row="0" Background="#2d2d2d" Padding="4,3">
+        <!-- Single unified header bar -->
+        <Border Grid.Row="0" Background="{DynamicResource ThemeHeaderBg}" Padding="4,3">
             <DockPanel>
                 <!-- Right side: controls -->
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Font:" Foreground="#999" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <TextBlock Text="Font:" Foreground="{DynamicResource ThemeText}" VerticalAlignment="Center" Margin="0,0,4,0"/>
                     <ComboBox x:Name="FontSizeCombo" Width="50"
                               SelectedIndex="2"
                               SelectionChanged="FontSizeCombo_SelectionChanged">
@@ -49,7 +49,7 @@
 
                     <Border Width="1" Background="#555" Margin="8,2"/>
 
-                    <TextBlock Text="Rows:" Foreground="#999" VerticalAlignment="Center" Margin="0,0,4,0"
+                    <TextBlock Text="Rows:" Foreground="{DynamicResource ThemeText}" VerticalAlignment="Center" Margin="0,0,4,0"
                                Visibility="{Binding IsGridMode, Converter={StaticResource BoolToVis}}"/>
                     <ComboBox x:Name="RowsCombo" SelectedIndex="1" Width="45"
                               SelectionChanged="RowsCombo_SelectionChanged"
@@ -60,7 +60,7 @@
                         <ComboBoxItem Content="4"/>
                         <ComboBoxItem Content="5"/>
                     </ComboBox>
-                    <TextBlock Text="x" Foreground="#999" VerticalAlignment="Center" Margin="4,0"
+                    <TextBlock Text="x" Foreground="{DynamicResource ThemeText}" VerticalAlignment="Center" Margin="4,0"
                                Visibility="{Binding IsGridMode, Converter={StaticResource BoolToVis}}"/>
                     <ComboBox x:Name="ColumnsCombo" SelectedIndex="1" Width="45"
                               SelectionChanged="ColumnsCombo_SelectionChanged"
@@ -74,74 +74,74 @@
 
                     <ToggleButton Content="Grid"
                                   IsChecked="{Binding IsGridMode}"
-                                  Foreground="White"
                                   Padding="10,3"
                                   Margin="6,0,0,0"
-                                  BorderThickness="0"
-                                  Cursor="Hand"/>
+                                  Cursor="Hand">
+                        <ToggleButton.Style>
+                            <Style TargetType="ToggleButton">
+                                <Setter Property="Background" Value="{DynamicResource ThemeButtonBg}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeMutedText}"/>
+                                <Setter Property="BorderBrush" Value="#555"/>
+                                <Setter Property="BorderThickness" Value="1"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border x:Name="Bd"
+                                                    Background="{TemplateBinding Background}"
+                                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                                    CornerRadius="3"
+                                                    Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsChecked" Value="True">
+                                                    <Setter Property="Background" Value="{DynamicResource ThemeAccent}"/>
+                                                    <Setter Property="Foreground" Value="White"/>
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource ThemeAccent}"/>
+                                                </Trigger>
+                                                <MultiTrigger>
+                                                    <MultiTrigger.Conditions>
+                                                        <Condition Property="IsMouseOver" Value="True"/>
+                                                        <Condition Property="IsChecked" Value="False"/>
+                                                    </MultiTrigger.Conditions>
+                                                    <Setter Property="Background" Value="#4a4a4a"/>
+                                                </MultiTrigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </ToggleButton.Style>
+                    </ToggleButton>
                 </StackPanel>
 
-                <!-- Left side: + button, profiles, broadcast, snippets, sessions -->
+                <!-- Left side: Tools dropdown, + button -->
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Tools dropdown button -->
+                    <Button x:Name="ToolsButton" Content="&#x25BC; Tools"
+                            Click="ToolsButton_Click"
+                            Background="{DynamicResource ThemeButtonBg}"
+                            Foreground="{DynamicResource ThemeText}"
+                            FontSize="12"
+                            Padding="10,3"
+                            BorderBrush="#555" BorderThickness="1"
+                            Cursor="Hand"
+                            Margin="0,0,4,0"
+                            ToolTip="Profiles, Broadcast, Snippets, Sessions, Theme..."/>
+
                     <Button Content="+"
                             Command="{Binding AddTerminalCommand}"
-                            Background="#0e639c"
+                            Background="{DynamicResource ThemeAccent}"
                             Foreground="White"
                             FontWeight="Bold"
                             FontSize="14"
                             Padding="8,1"
                             BorderThickness="0"
                             Cursor="Hand"
-                            ToolTip="New Terminal"
-                            Margin="0,0,4,0"/>
+                            ToolTip="New Terminal"/>
 
-                    <!-- Profiles dropdown -->
-                    <ComboBox x:Name="ProfilesDropdown" Width="100" Margin="2,0"
-                              ToolTip="Quick-create from profile"
-                              SelectionChanged="ProfilesDropdown_SelectionChanged">
-                        <ComboBoxItem Content="Profiles" IsSelected="True" IsEnabled="False"/>
-                    </ComboBox>
-
-                    <Border Width="1" Background="#555" Margin="4,2"/>
-
-                    <!-- Broadcast toggle -->
-                    <ToggleButton x:Name="BroadcastToggle"
-                                  Content="Broadcast"
-                                  IsChecked="{Binding IsBroadcastMode}"
-                                  Foreground="White"
-                                  Padding="8,2"
-                                  BorderThickness="0"
-                                  Cursor="Hand"
-                                  ToolTip="Toggle broadcast mode (send to all terminals)"
-                                  Margin="2,0"/>
-
-                    <Border Width="1" Background="#555" Margin="4,2"/>
-
-                    <!-- Snippets -->
-                    <Button Content="{}{}"
-                            Click="ManageSnippets_Click"
-                            Background="Transparent"
-                            Foreground="#E0E0E0"
-                            FontSize="12"
-                            Padding="8,2"
-                            BorderThickness="0"
-                            Cursor="Hand"
-                            ToolTip="Manage Snippets"
-                            Margin="2,0"/>
-
-                    <!-- Sessions -->
-                    <Button Content="Sessions"
-                            Click="ManageSessions_Click"
-                            Background="Transparent"
-                            Foreground="#E0E0E0"
-                            FontSize="12"
-                            Padding="8,2"
-                            BorderThickness="0"
-                            Cursor="Hand"
-                            ToolTip="Save/Load Sessions"
-                            Margin="2,0"/>
-
-                    <Border Width="1" Background="#555" Margin="4,2"/>
+                    <Border Width="1" Background="#555" Margin="6,2"/>
                 </StackPanel>
 
                 <!-- Tabs fill remaining space -->
@@ -165,8 +165,8 @@
                                 <Setter.Value>
                                     <ControlTemplate TargetType="ListBoxItem">
                                         <Border x:Name="TabBorder"
-                                                Background="#2d2d2d"
-                                                BorderBrush="#3e3e3e"
+                                                Background="{DynamicResource ThemeHeaderBg}"
+                                                BorderBrush="{DynamicResource ThemeBorder}"
                                                 BorderThickness="1"
                                                 CornerRadius="3"
                                                 Margin="0,0,2,0"
@@ -176,8 +176,8 @@
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsSelected" Value="True">
-                                                <Setter TargetName="TabBorder" Property="Background" Value="#1e1e1e"/>
-                                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="#0e639c"/>
+                                                <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource ThemeMainBg}"/>
+                                                <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource ThemeAccent}"/>
                                             </Trigger>
                                             <MultiTrigger>
                                                 <MultiTrigger.Conditions>
@@ -213,7 +213,7 @@
                                 <Ellipse Width="7" Height="7" Margin="0,0,5,0" VerticalAlignment="Center"
                                          Fill="{Binding AccentColor, Converter={StaticResource StringToBrush}}"/>
                                 <!-- Index -->
-                                <TextBlock Text="{Binding DisplayIndex}" Foreground="#888"
+                                <TextBlock Text="{Binding DisplayIndex}" Foreground="{DynamicResource ThemeMutedText}"
                                            FontSize="10" FontFamily="Consolas"
                                            VerticalAlignment="Center" Margin="0,0,3,0"/>
                                 <!-- Type badge -->
@@ -223,14 +223,15 @@
                                                FontSize="9" FontFamily="Consolas" FontWeight="Bold"/>
                                 </Border>
                                 <!-- Name (normal) -->
-                                <TextBlock x:Name="TabNameText" Text="{Binding Name}" Foreground="#E0E0E0"
+                                <TextBlock x:Name="TabNameText" Text="{Binding Name}" Foreground="{DynamicResource ThemeText}"
                                            VerticalAlignment="Center" FontSize="11" FontWeight="SemiBold"
                                            MouseLeftButtonDown="TabNameText_MouseLeftButtonDown"/>
                                 <!-- Name (rename) -->
                                 <TextBox x:Name="TabRenameBox" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
                                          Visibility="Collapsed"
-                                         Background="#1e1e1e" Foreground="#E0E0E0" CaretBrush="#E0E0E0"
-                                         BorderBrush="#0e639c" BorderThickness="1"
+                                         Background="{DynamicResource ThemeMainBg}" Foreground="{DynamicResource ThemeText}"
+                                         CaretBrush="{DynamicResource ThemeText}"
+                                         BorderBrush="{DynamicResource ThemeAccent}" BorderThickness="1"
                                          FontSize="11" MinWidth="60" Padding="2,0"
                                          KeyDown="TabRenameBox_KeyDown"
                                          LostFocus="TabRenameBox_LostFocus"/>
@@ -238,7 +239,7 @@
                                 <Button Content=" &#x2715;" FontSize="9"
                                         Command="{Binding DataContext.CloseTerminalCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
                                         CommandParameter="{Binding}"
-                                        Background="Transparent" Foreground="#888"
+                                        Background="Transparent" Foreground="#CC6666"
                                         BorderThickness="0" Cursor="Hand"
                                         Margin="3,0,0,0" Padding="2,0"/>
                             </StackPanel>
@@ -248,22 +249,13 @@
             </DockPanel>
         </Border>
 
-        <!-- Broadcast banner -->
-        <Border Grid.Row="1" Background="#c27d1a" Padding="6,3" VerticalAlignment="Top"
-                Panel.ZIndex="10"
-                Visibility="{Binding IsBroadcastMode, Converter={StaticResource BoolToVis}}">
-            <TextBlock Text="BROADCAST MODE: Input will be sent to all checked terminals"
-                       Foreground="White" FontWeight="SemiBold" FontSize="11"
-                       HorizontalAlignment="Center"/>
-        </Border>
-
         <!-- Terminal host -->
         <Grid x:Name="TerminalHost" Grid.Row="1"/>
 
         <!-- Empty state -->
         <TextBlock Grid.Row="1"
                    Text="Click '+' to get started"
-                   Foreground="#666"
+                   Foreground="{DynamicResource ThemeMutedText}"
                    FontSize="16"
                    HorizontalAlignment="Center"
                    VerticalAlignment="Center"

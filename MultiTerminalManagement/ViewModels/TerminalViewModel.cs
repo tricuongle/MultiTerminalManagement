@@ -27,7 +27,7 @@ namespace MultiTerminalManagement.ViewModels
 
         public TerminalType Type { get; }
         public string CommandLine { get; }
-        public string AccentColor { get; }
+        public string AccentColor { get; set; }
         public string WorkingDirectory { get; }
         public string StartupCommand { get; }
 
