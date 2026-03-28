@@ -1,8 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Threading;
 using MultiTerminalManagement.ViewModels;
 
 namespace MultiTerminalManagement.Views
@@ -50,8 +52,7 @@ namespace MultiTerminalManagement.Views
         {
             if (e.Key == Key.Escape)
             {
-                DialogResult = false;
-                Close();
+                SafeClose(false);
                 e.Handled = true;
             }
             else if (e.Key == Key.Enter)
@@ -91,19 +92,31 @@ namespace MultiTerminalManagement.Views
             if (ResultsList.SelectedItem is TerminalViewModel vm)
             {
                 SelectedTerminal = vm;
-                DialogResult = true;
+                SafeClose(true);
+            }
+        }
+
+        private void SafeClose(bool? result)
+        {
+            try
+            {
+                DialogResult = result;
+            }
+            catch (InvalidOperationException)
+            {
                 Close();
             }
         }
 
-        private void Window_Deactivated(object sender, System.EventArgs e)
+        private void Window_Deactivated(object sender, EventArgs e)
         {
-            // Close when losing focus (clicking outside)
-            if (IsVisible)
+            if (!IsVisible) return;
+
+            Dispatcher.BeginInvoke(DispatcherPriority.Normal, new Action(() =>
             {
-                DialogResult = false;
-                Close();
-            }
+                if (IsVisible)
+                    SafeClose(false);
+            }));
         }
     }
 }
