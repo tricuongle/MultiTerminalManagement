@@ -100,8 +100,14 @@ namespace MultiTerminalManagement.Views
         {
             if (IsVisible)
             {
-                DialogResult = false;
-                Close();
+                try
+                {
+                    DialogResult = false;
+                }
+                catch (System.InvalidOperationException)
+                {
+                    Close();
+                }
             }
         }
     }
