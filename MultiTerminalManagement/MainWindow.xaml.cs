@@ -137,21 +137,24 @@ namespace MultiTerminalManagement
 
         private void ViewModel_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName is nameof(MainViewModel.SelectedTerminal)
-                or nameof(MainViewModel.IsGridMode)
+            if (e.PropertyName is nameof(MainViewModel.IsGridMode)
                 or nameof(MainViewModel.GridColumns)
                 or nameof(MainViewModel.GridRows))
             {
                 if (e.PropertyName == nameof(MainViewModel.IsGridMode))
                     _zoomedTerminal = null;
                 UpdateTerminalLayout();
+            }
 
-                if (e.PropertyName == nameof(MainViewModel.SelectedTerminal))
-                {
-                    FocusSelectedTerminal();
-                    if (_viewModel.SelectedTerminal != null)
-                        _viewModel.SelectedTerminal.HasCompletedCommand = false;
-                }
+            if (e.PropertyName == nameof(MainViewModel.SelectedTerminal))
+            {
+                // Only update layout in tab mode (grid mode already shows all terminals)
+                if (!_viewModel.IsGridMode)
+                    UpdateTerminalLayout();
+
+                FocusSelectedTerminal();
+                if (_viewModel.SelectedTerminal != null)
+                    _viewModel.SelectedTerminal.HasCompletedCommand = false;
             }
 
             if (e.PropertyName == nameof(MainViewModel.FontSize))

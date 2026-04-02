@@ -70,6 +70,7 @@ namespace MultiTerminalManagement.Views
                     FontFamilyWhenSettingTheme = new FontFamily("Consolas"),
                 };
 
+                _termControl.Focusable = false;
                 HostGrid.Children.Add(_termControl);
 
                 Dispatcher.BeginInvoke(new Action(() => ApplyTheme()),
@@ -174,6 +175,18 @@ namespace MultiTerminalManagement.Views
         private void HostGrid_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             InputBox.Focus();
+        }
+
+        private void TerminalOverlay_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            // Forward scroll to terminal: Up/Down arrow escape sequences
+            if (_termControl?.ConPTYTerm == null) return;
+            int lines = e.Delta > 0 ? -3 : 3;
+            string seq = lines < 0 ? "\x1b[A" : "\x1b[B";
+            int count = Math.Abs(lines);
+            for (int i = 0; i < count; i++)
+                WriteToConPTY(seq);
+            e.Handled = true;
         }
 
         // ---- Rename ----

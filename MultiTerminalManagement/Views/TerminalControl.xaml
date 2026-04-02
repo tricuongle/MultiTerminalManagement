@@ -91,7 +91,13 @@
                 <ContentControl x:Name="SearchBarHost" Grid.Row="1"/>
 
                 <!-- Terminal area -->
-                <Grid x:Name="HostGrid" Grid.Row="2" MouseLeftButtonDown="HostGrid_MouseLeftButtonDown"/>
+                <Grid Grid.Row="2">
+                    <Grid x:Name="HostGrid"/>
+                    <!-- Transparent overlay prevents terminal native HWND from stealing keyboard focus -->
+                    <Border Background="Transparent"
+                            MouseLeftButtonDown="HostGrid_MouseLeftButtonDown"
+                            MouseWheel="TerminalOverlay_MouseWheel"/>
+                </Grid>
 
                 <!-- Input bar -->
                 <Border Grid.Row="3" Background="{DynamicResource ThemeInputBg}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="0,1,0,0">
