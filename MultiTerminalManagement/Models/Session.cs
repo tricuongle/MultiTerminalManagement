@@ -21,7 +21,9 @@ namespace MultiTerminalManagement.Models
         public int GridRows { get; set; } = 2;
         public int GridColumns { get; set; } = 2;
         public bool IsGridMode { get; set; }
-        public int FontSize { get; set; } = 14;
+        public bool IsAutoGrid { get; set; } = true;
+        public string LayoutPreset { get; set; } = "EvenGrid";
+        public int FontSize { get; set; } = 12;
     }
 
     public static class SessionStore

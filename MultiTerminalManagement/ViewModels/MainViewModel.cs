@@ -15,8 +15,10 @@ namespace MultiTerminalManagement.ViewModels
         private bool _isGridMode;
         private int _gridColumns = 2;
         private int _gridRows = 2;
-        private int _fontSize = 14;
+        private int _fontSize = 12;
         private bool _isBroadcastMode;
+        private bool _isAutoGrid = true;
+        private string _selectedPreset = "EvenGrid";
 
         public ObservableCollection<TerminalViewModel> Terminals { get; } = new ObservableCollection<TerminalViewModel>();
 
@@ -48,6 +50,22 @@ namespace MultiTerminalManagement.ViewModels
         {
             get => _fontSize;
             set => SetProperty(ref _fontSize, value);
+        }
+
+        public bool IsAutoGrid
+        {
+            get => _isAutoGrid;
+            set
+            {
+                if (SetProperty(ref _isAutoGrid, value) && value)
+                    RecalcAutoGrid();
+            }
+        }
+
+        public string SelectedPreset
+        {
+            get => _selectedPreset;
+            set => SetProperty(ref _selectedPreset, value);
         }
 
         public bool IsBroadcastMode
@@ -93,7 +111,25 @@ namespace MultiTerminalManagement.ViewModels
                     GoToTerminal(i);
             });
 
-            Terminals.CollectionChanged += (s, e) => UpdateTerminalIndices();
+            Terminals.CollectionChanged += (s, e) =>
+            {
+                UpdateTerminalIndices();
+                if (_isAutoGrid && _isGridMode)
+                    RecalcAutoGrid();
+            };
+        }
+
+        public void RecalcAutoGrid()
+        {
+            int count = Terminals.Count;
+            if (count <= 0) return;
+
+            // Calculate optimal cols x rows to fit all terminals
+            int cols = (int)Math.Ceiling(Math.Sqrt(count));
+            int rows = (int)Math.Ceiling((double)count / cols);
+
+            GridColumns = cols;
+            GridRows = rows;
         }
 
         private void AddTerminal()
@@ -185,6 +221,19 @@ namespace MultiTerminalManagement.ViewModels
             Terminals.Move(oldIndex, newIndex);
         }
 
+        public void SwapTerminals(int indexA, int indexB)
+        {
+            if (indexA < 0 || indexA >= Terminals.Count) return;
+            if (indexB < 0 || indexB >= Terminals.Count) return;
+            if (indexA == indexB) return;
+
+            // Swap by moving: move A to B's position, then adjust
+            int lo = Math.Min(indexA, indexB);
+            int hi = Math.Max(indexA, indexB);
+            Terminals.Move(hi, lo);
+            Terminals.Move(lo + 1, hi);
+        }
+
         public void CreateTerminalFromProfile(Models.TerminalProfile profile)
         {
             var vm = new TerminalViewModel(
@@ -210,6 +259,8 @@ namespace MultiTerminalManagement.ViewModels
                 GridRows = GridRows,
                 GridColumns = GridColumns,
                 IsGridMode = IsGridMode,
+                IsAutoGrid = IsAutoGrid,
+                LayoutPreset = SelectedPreset,
                 FontSize = FontSize,
                 Terminals = new System.Collections.Generic.List<Models.TerminalConfig>()
             };
@@ -235,6 +286,8 @@ namespace MultiTerminalManagement.ViewModels
             GridRows = session.GridRows;
             GridColumns = session.GridColumns;
             IsGridMode = session.IsGridMode;
+            IsAutoGrid = session.IsAutoGrid;
+            SelectedPreset = session.LayoutPreset ?? "EvenGrid";
             FontSize = session.FontSize;
 
             foreach (var tc in session.Terminals)

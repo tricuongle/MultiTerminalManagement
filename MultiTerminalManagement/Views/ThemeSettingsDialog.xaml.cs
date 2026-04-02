@@ -24,7 +24,20 @@ namespace MultiTerminalManagement.Views
             InputBgBox.Text = s.ThemeInputBg;
             TextColorBox.Text = s.ThemeTextColor;
             MutedTextBox.Text = s.ThemeMutedText;
+            SelectComboByContent(FontSizeCombo, s.FontSize.ToString());
             UpdateAllPreviews();
+        }
+
+        private static void SelectComboByContent(System.Windows.Controls.ComboBox combo, string value)
+        {
+            for (int i = 0; i < combo.Items.Count; i++)
+            {
+                if (combo.Items[i] is System.Windows.Controls.ComboBoxItem item && item.Content?.ToString() == value)
+                {
+                    combo.SelectedIndex = i;
+                    return;
+                }
+            }
         }
 
         private void ColorBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -103,9 +116,21 @@ namespace MultiTerminalManagement.Views
             s.ThemeInputBg = InputBgBox.Text.Trim();
             s.ThemeTextColor = TextColorBox.Text.Trim();
             s.ThemeMutedText = MutedTextBox.Text.Trim();
+
+            // Font size
+            if (FontSizeCombo.SelectedItem is System.Windows.Controls.ComboBoxItem fsItem
+                && int.TryParse(fsItem.Content?.ToString(), out int fontSize))
+            {
+                s.FontSize = fontSize;
+            }
+
             s.Save();
 
             App.ApplyTheme(s);
+
+            // Update MainViewModel font size
+            if (Owner?.DataContext is ViewModels.MainViewModel vm)
+                vm.FontSize = s.FontSize;
         }
 
         private void Close_Click(object sender, RoutedEventArgs e) => Close();

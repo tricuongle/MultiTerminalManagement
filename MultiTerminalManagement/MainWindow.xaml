@@ -35,43 +35,6 @@
             <DockPanel>
                 <!-- Right side: controls -->
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Font:" Foreground="{DynamicResource ThemeText}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <ComboBox x:Name="FontSizeCombo" Width="50"
-                              SelectedIndex="2"
-                              SelectionChanged="FontSizeCombo_SelectionChanged">
-                        <ComboBoxItem Content="10"/>
-                        <ComboBoxItem Content="12"/>
-                        <ComboBoxItem Content="14"/>
-                        <ComboBoxItem Content="16"/>
-                        <ComboBoxItem Content="18"/>
-                        <ComboBoxItem Content="20"/>
-                    </ComboBox>
-
-                    <Border Width="1" Background="#555" Margin="8,2"/>
-
-                    <TextBlock Text="Rows:" Foreground="{DynamicResource ThemeText}" VerticalAlignment="Center" Margin="0,0,4,0"
-                               Visibility="{Binding IsGridMode, Converter={StaticResource BoolToVis}}"/>
-                    <ComboBox x:Name="RowsCombo" SelectedIndex="1" Width="45"
-                              SelectionChanged="RowsCombo_SelectionChanged"
-                              Visibility="{Binding IsGridMode, Converter={StaticResource BoolToVis}}">
-                        <ComboBoxItem Content="1"/>
-                        <ComboBoxItem Content="2"/>
-                        <ComboBoxItem Content="3"/>
-                        <ComboBoxItem Content="4"/>
-                        <ComboBoxItem Content="5"/>
-                    </ComboBox>
-                    <TextBlock Text="x" Foreground="{DynamicResource ThemeText}" VerticalAlignment="Center" Margin="4,0"
-                               Visibility="{Binding IsGridMode, Converter={StaticResource BoolToVis}}"/>
-                    <ComboBox x:Name="ColumnsCombo" SelectedIndex="1" Width="45"
-                              SelectionChanged="ColumnsCombo_SelectionChanged"
-                              Visibility="{Binding IsGridMode, Converter={StaticResource BoolToVis}}">
-                        <ComboBoxItem Content="1"/>
-                        <ComboBoxItem Content="2"/>
-                        <ComboBoxItem Content="3"/>
-                        <ComboBoxItem Content="4"/>
-                        <ComboBoxItem Content="5"/>
-                    </ComboBox>
-
                     <ToggleButton Content="Grid"
                                   IsChecked="{Binding IsGridMode}"
                                   Padding="10,3"

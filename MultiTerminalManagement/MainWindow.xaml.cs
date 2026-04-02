@@ -46,36 +46,19 @@ namespace MultiTerminalManagement
         private void LoadSettings()
         {
             var s = AppSettings.Load();
-            _viewModel.GridColumns = s.GridColumns;
-            _viewModel.GridRows = s.GridRows;
             _viewModel.FontSize = s.FontSize;
-
-            SelectComboByContent(ColumnsCombo, s.GridColumns.ToString());
-            SelectComboByContent(RowsCombo, s.GridRows.ToString());
-            SelectComboByContent(FontSizeCombo, s.FontSize.ToString());
+            _viewModel.IsAutoGrid = true;
         }
 
         private void SaveSettings()
         {
             if (!_initialized) return;
-            new AppSettings
-            {
-                GridColumns = _viewModel.GridColumns,
-                GridRows = _viewModel.GridRows,
-                FontSize = _viewModel.FontSize
-            }.Save();
-        }
-
-        private static void SelectComboByContent(ComboBox combo, string value)
-        {
-            for (int i = 0; i < combo.Items.Count; i++)
-            {
-                if (combo.Items[i] is ComboBoxItem item && item.Content?.ToString() == value)
-                {
-                    combo.SelectedIndex = i;
-                    return;
-                }
-            }
+            var s = AppSettings.Load();
+            s.GridColumns = _viewModel.GridColumns;
+            s.GridRows = _viewModel.GridRows;
+            s.FontSize = _viewModel.FontSize;
+            s.IsAutoGrid = true;
+            s.Save();
         }
 
         // ---- Terminal lifecycle ----
@@ -179,7 +162,8 @@ namespace MultiTerminalManagement
 
             if (e.PropertyName is nameof(MainViewModel.GridColumns)
                 or nameof(MainViewModel.GridRows)
-                or nameof(MainViewModel.FontSize))
+                or nameof(MainViewModel.FontSize)
+                or nameof(MainViewModel.IsAutoGrid))
             {
                 SaveSettings();
             }
@@ -223,22 +207,60 @@ namespace MultiTerminalManagement
             {
                 if (_zoomedTerminal != null && _terminalControls.ContainsKey(_zoomedTerminal))
                 {
-                    TerminalHost.RowDefinitions.Add(new RowDefinition());
-                    TerminalHost.ColumnDefinitions.Add(new ColumnDefinition());
+                    // Focus layout: focused terminal large on the left, others stacked on the right
+                    var others = _viewModel.Terminals.Where(k => k != _zoomedTerminal).ToList();
 
-                    foreach (var kvp in _terminalControls)
+                    if (others.Count == 0)
                     {
-                        Grid.SetRow(kvp.Value, 0);
-                        Grid.SetColumn(kvp.Value, 0);
-                        bool isZoomed = kvp.Key == _zoomedTerminal;
-                        kvp.Value.Visibility = isZoomed ? Visibility.Visible : Visibility.Collapsed;
-                        kvp.Value.ShowHeader = true;
-                        kvp.Value.IsZoomed = isZoomed;
-                        kvp.Value.Margin = new Thickness(0);
+                        // Only one terminal - full screen
+                        TerminalHost.RowDefinitions.Add(new RowDefinition());
+                        TerminalHost.ColumnDefinitions.Add(new ColumnDefinition());
+                        var tc = _terminalControls[_zoomedTerminal];
+                        Grid.SetRow(tc, 0);
+                        Grid.SetColumn(tc, 0);
+                        tc.Visibility = Visibility.Visible;
+                        tc.ShowHeader = true;
+                        tc.IsZoomed = true;
+                        tc.Margin = new Thickness(0);
+                    }
+                    else
+                    {
+                        // Left column = 3*, Right column = 1*
+                        TerminalHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
+                        TerminalHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                        // Left: focused terminal spans all rows
+                        int sideRows = Math.Max(1, others.Count);
+                        for (int r = 0; r < sideRows; r++)
+                            TerminalHost.RowDefinitions.Add(new RowDefinition());
+
+                        var focusedTc = _terminalControls[_zoomedTerminal];
+                        Grid.SetRow(focusedTc, 0);
+                        Grid.SetRowSpan(focusedTc, sideRows);
+                        Grid.SetColumn(focusedTc, 0);
+                        focusedTc.Visibility = Visibility.Visible;
+                        focusedTc.ShowHeader = true;
+                        focusedTc.IsZoomed = true;
+                        focusedTc.Margin = new Thickness(1);
+
+                        // Right: other terminals stacked (following Terminals order)
+                        for (int i = 0; i < others.Count; i++)
+                        {
+                            var tc = _terminalControls[others[i]];
+                            Grid.SetRow(tc, i);
+                            Grid.SetRowSpan(tc, 1);
+                            Grid.SetColumn(tc, 1);
+                            tc.Visibility = Visibility.Visible;
+                            tc.ShowHeader = true;
+                            tc.IsZoomed = false;
+                            tc.Margin = new Thickness(1);
+                        }
                     }
                 }
                 else
                 {
+                    // Auto Grid: calculate rows/cols from terminal count
+                    _viewModel.RecalcAutoGrid();
                     var cols = Math.Max(1, _viewModel.GridColumns);
                     var rows = Math.Max(1, _viewModel.GridRows);
 
@@ -248,16 +270,16 @@ namespace MultiTerminalManagement
                         TerminalHost.ColumnDefinitions.Add(new ColumnDefinition());
 
                     int i = 0;
-                    foreach (var kvp in _terminalControls)
+                    foreach (var vm in _viewModel.Terminals)
                     {
-                        Grid.SetRow(kvp.Value, i / cols);
-                        Grid.SetColumn(kvp.Value, i % cols);
-                        kvp.Value.Visibility = (i < rows * cols)
-                            ? Visibility.Visible
-                            : Visibility.Collapsed;
-                        kvp.Value.ShowHeader = true;
-                        kvp.Value.IsZoomed = false;
-                        kvp.Value.Margin = new Thickness(1);
+                        if (!_terminalControls.TryGetValue(vm, out var tc)) continue;
+                        Grid.SetRow(tc, i / cols);
+                        Grid.SetRowSpan(tc, 1);
+                        Grid.SetColumn(tc, i % cols);
+                        tc.Visibility = Visibility.Visible;
+                        tc.ShowHeader = true;
+                        tc.IsZoomed = false;
+                        tc.Margin = new Thickness(1);
                         i++;
                     }
                 }
@@ -268,16 +290,17 @@ namespace MultiTerminalManagement
                 TerminalHost.RowDefinitions.Add(new RowDefinition());
                 TerminalHost.ColumnDefinitions.Add(new ColumnDefinition());
 
-                foreach (var kvp in _terminalControls)
+                foreach (var vm in _viewModel.Terminals)
                 {
-                    Grid.SetRow(kvp.Value, 0);
-                    Grid.SetColumn(kvp.Value, 0);
-                    kvp.Value.Visibility = kvp.Key == _viewModel.SelectedTerminal
+                    if (!_terminalControls.TryGetValue(vm, out var tc)) continue;
+                    Grid.SetRow(tc, 0);
+                    Grid.SetColumn(tc, 0);
+                    tc.Visibility = vm == _viewModel.SelectedTerminal
                         ? Visibility.Visible
                         : Visibility.Collapsed;
-                    kvp.Value.ShowHeader = false;
-                    kvp.Value.IsZoomed = false;
-                    kvp.Value.Margin = new Thickness(0);
+                    tc.ShowHeader = false;
+                    tc.IsZoomed = false;
+                    tc.Margin = new Thickness(0);
                 }
             }
         }
@@ -547,10 +570,6 @@ namespace MultiTerminalManagement
                 if (dlg.ShowDialog() == true && dlg.SessionToLoad != null)
                 {
                     _viewModel.RestoreSession(dlg.SessionToLoad);
-                    LoadSettings();
-                    SelectComboByContent(ColumnsCombo, _viewModel.GridColumns.ToString());
-                    SelectComboByContent(RowsCombo, _viewModel.GridRows.ToString());
-                    SelectComboByContent(FontSizeCombo, _viewModel.FontSize.ToString());
                 }
             };
             menu.Items.Add(sessionsItem);
@@ -636,28 +655,5 @@ namespace MultiTerminalManagement
                 "Hướng dẫn sử dụng", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
-        private void ColumnsCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (_viewModel == null) return;
-            if (sender is ComboBox combo && combo.SelectedItem is ComboBoxItem item)
-                if (int.TryParse(item.Content?.ToString(), out int val))
-                    _viewModel.GridColumns = val;
-        }
-
-        private void RowsCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (_viewModel == null) return;
-            if (sender is ComboBox combo && combo.SelectedItem is ComboBoxItem item)
-                if (int.TryParse(item.Content?.ToString(), out int val))
-                    _viewModel.GridRows = val;
-        }
-
-        private void FontSizeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (_viewModel == null) return;
-            if (sender is ComboBox combo && combo.SelectedItem is ComboBoxItem item)
-                if (int.TryParse(item.Content?.ToString(), out int val))
-                    _viewModel.FontSize = val;
-        }
     }
 }

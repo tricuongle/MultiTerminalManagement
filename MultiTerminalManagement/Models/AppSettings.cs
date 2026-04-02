@@ -8,8 +8,10 @@ namespace MultiTerminalManagement.Models
     {
         public int GridColumns { get; set; } = 2;
         public int GridRows { get; set; } = 2;
-        public int FontSize { get; set; } = 14;
+        public int FontSize { get; set; } = 12;
         public bool AutoRestoreSession { get; set; } = false;
+        public bool IsAutoGrid { get; set; } = true;
+        public string LayoutPreset { get; set; } = "EvenGrid";
         public bool NotifyOnCommandCompletion { get; set; } = true;
         public int NotificationThresholdSeconds { get; set; } = 10;
 
