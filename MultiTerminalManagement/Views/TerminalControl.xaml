@@ -5,7 +5,8 @@
              Loaded="OnLoaded">
 
     <!-- Outer border: accent left strip + focus border -->
-    <Border x:Name="FocusBorder" BorderThickness="0" BorderBrush="Transparent">
+    <!-- BorderThickness fixed at 2 to avoid layout shift that causes HwndHost duplicate rendering -->
+    <Border x:Name="FocusBorder" BorderThickness="2" BorderBrush="Transparent">
         <DockPanel>
             <!-- Accent color left strip (3px) -->
             <Border x:Name="AccentStrip" DockPanel.Dock="Left" Width="3"
@@ -91,14 +92,10 @@
                 <!-- Search bar (row 1, injected by code-behind) -->
                 <ContentControl x:Name="SearchBarHost" Grid.Row="1"/>
 
-                <!-- Terminal area -->
+                <!-- Terminal area: fully interactive -->
                 <Grid Grid.Row="2">
-                    <Grid x:Name="HostGrid" IsHitTestVisible="False"/>
-                    <!-- Transparent overlay prevents terminal native HWND from stealing keyboard focus -->
-                    <Border Background="Transparent"
-                            MouseLeftButtonDown="HostGrid_MouseLeftButtonDown"
-                            MouseRightButtonUp="OnCellRightClick"
-                            MouseWheel="TerminalOverlay_MouseWheel"/>
+                    <Grid x:Name="HostGrid"
+                          MouseRightButtonUp="OnCellRightClick"/>
                 </Grid>
 
                 <!-- Input bar -->

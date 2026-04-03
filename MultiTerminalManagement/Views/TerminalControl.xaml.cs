@@ -1,12 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Interop;
 using System.Windows.Media;
 using EasyWindowsTerminalControl;
 using Microsoft.Terminal.Wpf;
@@ -75,25 +73,17 @@ namespace MultiTerminalManagement.Views
                     FontFamilyWhenSettingTheme = new FontFamily("Consolas"),
                 };
 
-                _termControl.Focusable = false;
-                _termControl.IsHitTestVisible = false;
-
                 HostGrid.Children.Add(_termControl);
 
-                // Disable the native HWND at the Win32 level so it cannot steal
-                // keyboard focus when the mouse enters its area (WPF airspace issue).
-                // ConPTY output still renders because it arrives via pipe, not Win32 messages.
-                Dispatcher.BeginInvoke(new Action(() => DisableTerminalHwndInput()),
-                    System.Windows.Threading.DispatcherPriority.Loaded);
-
-                // Safety net: if the HWND somehow gets focus, redirect to InputBox.
-                _termControl.GotFocus += (s, ev) =>
+                // When terminal gets focus, mark this cell as active
+                _termControl.GotFocus += (s, ev) => SetActive(true);
+                _termControl.LostFocus += (s, ev) =>
                 {
-                    if (_terminalCreated)
+                    Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        Dispatcher.BeginInvoke(new Action(() => InputBox.Focus()),
-                            System.Windows.Threading.DispatcherPriority.Input);
-                    }
+                        if (!_termControl.IsFocused && !InputBox.IsFocused && !HeaderRenameBox.IsFocused)
+                            SetActive(false);
+                    }), System.Windows.Threading.DispatcherPriority.Input);
                 };
 
                 Dispatcher.BeginInvoke(new Action(() => ApplyTheme()),
@@ -156,38 +146,6 @@ namespace MultiTerminalManagement.Views
             ApplyTheme();
         }
 
-        // ---- Win32 HWND input disable ----
-
-        [DllImport("user32.dll")]
-        private static extern bool EnableWindow(IntPtr hWnd, bool bEnable);
-
-        private void DisableTerminalHwndInput()
-        {
-            if (_termControl == null) return;
-            try
-            {
-                // Find the HwndHost (TerminalContainer) inside the EasyTerminalControl
-                var hwndHost = FindDescendant<HwndHost>(_termControl);
-                if (hwndHost != null && hwndHost.Handle != IntPtr.Zero)
-                {
-                    EnableWindow(hwndHost.Handle, false);
-                }
-            }
-            catch { }
-        }
-
-        private static T FindDescendant<T>(DependencyObject parent) where T : DependencyObject
-        {
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-            {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is T result) return result;
-                var desc = FindDescendant<T>(child);
-                if (desc != null) return desc;
-            }
-            return null;
-        }
-
         // ---- Focus management ----
 
         public void FocusInput()
@@ -200,16 +158,10 @@ namespace MultiTerminalManagement.Views
             if (DataContext is TerminalViewModel vm)
                 vm.IsActive = active;
 
-            if (active)
-            {
-                FocusBorder.BorderThickness = new Thickness(2);
-                FocusBorder.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0e639c"));
-            }
-            else
-            {
-                FocusBorder.BorderThickness = new Thickness(0);
-                FocusBorder.BorderBrush = Brushes.Transparent;
-            }
+            // Only change color, never thickness — layout shift causes HwndHost duplicate rendering
+            FocusBorder.BorderBrush = active
+                ? new SolidColorBrush((Color)ColorConverter.ConvertFromString("#0e639c"))
+                : Brushes.Transparent;
         }
 
         private void InputBox_GotFocus(object sender, RoutedEventArgs e)
@@ -219,28 +171,18 @@ namespace MultiTerminalManagement.Views
 
         private void InputBox_LostFocus(object sender, RoutedEventArgs e)
         {
-            // Delay check - if focus moves to rename box within same control, stay active
+            // Delay check - if focus moves to terminal or rename box, stay active
             Dispatcher.BeginInvoke(new Action(() =>
             {
-                if (!InputBox.IsFocused && !HeaderRenameBox.IsFocused)
+                if (!InputBox.IsFocused && !HeaderRenameBox.IsFocused
+                    && (_termControl == null || !_termControl.IsFocused))
                     SetActive(false);
             }), System.Windows.Threading.DispatcherPriority.Input);
         }
 
-        private void HostGrid_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        private void OnCellRightClick(object sender, MouseButtonEventArgs e)
         {
-            InputBox.Focus();
-        }
-
-        private void TerminalOverlay_MouseWheel(object sender, MouseWheelEventArgs e)
-        {
-            // Forward scroll to terminal: Up/Down arrow escape sequences
-            if (_termControl?.ConPTYTerm == null) return;
-            int lines = e.Delta > 0 ? -3 : 3;
-            string seq = lines < 0 ? "\x1b[A" : "\x1b[B";
-            int count = Math.Abs(lines);
-            for (int i = 0; i < count; i++)
-                WriteToConPTY(seq);
+            RightClicked?.Invoke(this, EventArgs.Empty);
             e.Handled = true;
         }
 
@@ -250,12 +192,6 @@ namespace MultiTerminalManagement.Views
         {
             if (HeaderBar.Visibility == Visibility.Visible)
                 StartRename();
-        }
-
-        private void OnCellRightClick(object sender, MouseButtonEventArgs e)
-        {
-            RightClicked?.Invoke(this, EventArgs.Empty);
-            e.Handled = true;
         }
 
         private void StartRename()
@@ -356,7 +292,13 @@ namespace MultiTerminalManagement.Views
         private async void SendCommand()
         {
             var text = InputBox.Text;
-            if (string.IsNullOrEmpty(text)) return;
+
+            // Empty Enter → send bare \r to terminal (confirm prompts, new line, etc.)
+            if (string.IsNullOrEmpty(text))
+            {
+                WriteToConPTY("\r");
+                return;
+            }
 
             // Add to history (avoid consecutive duplicates, keep last 5)
             if (_commandHistory.Count == 0 || _commandHistory[_commandHistory.Count - 1] != text)
@@ -400,7 +342,7 @@ namespace MultiTerminalManagement.Views
             await SendTextToTerminal(text);
         }
 
-        // ---- Keyboard handling ----
+        // ---- Keyboard handling (InputBox shortcuts) ----
 
         private void InputBox_PreviewKeyDown(object sender, KeyEventArgs e)
         {
@@ -412,18 +354,9 @@ namespace MultiTerminalManagement.Views
                 SendCommand();
                 e.Handled = true;
             }
-            else if (e.Key == Key.Up && !IsMultiLine())
-            {
-                WriteToConPTY("\x1b[A");
-                e.Handled = true;
-            }
-            else if (e.Key == Key.Down && !IsMultiLine())
-            {
-                WriteToConPTY("\x1b[B");
-                e.Handled = true;
-            }
             else if (e.Key == Key.C && Keyboard.Modifiers == ModifierKeys.Control)
             {
+                // Ctrl+C: cancel running command (only when no text selected in InputBox)
                 if (string.IsNullOrEmpty(InputBox.SelectedText))
                 {
                     WriteToConPTY("\x03");
@@ -446,11 +379,6 @@ namespace MultiTerminalManagement.Views
                 ToggleSearch();
                 e.Handled = true;
             }
-        }
-
-        private bool IsMultiLine()
-        {
-            return InputBox.Text?.Contains('\n') == true;
         }
 
         // ---- Drag & Drop ----
