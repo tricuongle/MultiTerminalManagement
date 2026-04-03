@@ -21,7 +21,8 @@
 
                 <!-- Grid mode header bar -->
                 <DockPanel x:Name="HeaderBar" Grid.Row="0" Background="{DynamicResource ThemeHeaderBg}" Visibility="Collapsed"
-                           MouseLeftButtonDown="HeaderBar_MouseLeftButtonDown">
+                           MouseLeftButtonDown="HeaderBar_MouseLeftButtonDown"
+                           MouseRightButtonUp="OnCellRightClick">
                     <!-- Close button (far right, red tint) -->
                     <Button DockPanel.Dock="Right" Content="  X  " FontSize="10"
                             Click="CloseButton_Click"
@@ -92,10 +93,11 @@
 
                 <!-- Terminal area -->
                 <Grid Grid.Row="2">
-                    <Grid x:Name="HostGrid"/>
+                    <Grid x:Name="HostGrid" IsHitTestVisible="False"/>
                     <!-- Transparent overlay prevents terminal native HWND from stealing keyboard focus -->
                     <Border Background="Transparent"
                             MouseLeftButtonDown="HostGrid_MouseLeftButtonDown"
+                            MouseRightButtonUp="OnCellRightClick"
                             MouseWheel="TerminalOverlay_MouseWheel"/>
                 </Grid>
 
@@ -103,6 +105,7 @@
                 <Border Grid.Row="3" Background="{DynamicResource ThemeInputBg}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="0,1,0,0">
                     <Grid Margin="4">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
@@ -115,10 +118,80 @@
                                    FontSize="14"
                                    FontWeight="Bold"
                                    VerticalAlignment="Top"
-                                   Margin="4,6,6,0"/>
+                                   Margin="4,6,2,0"/>
+
+                        <!-- History button -->
+                        <Button x:Name="HistoryButton" Grid.Column="1"
+                                Content="&#x1F552;"
+                                Click="HistoryButton_Click"
+                                Background="Transparent"
+                                Foreground="{DynamicResource ThemeMutedText}"
+                                FontSize="14"
+                                Padding="2,4"
+                                BorderThickness="0"
+                                Cursor="Hand"
+                                VerticalAlignment="Top"
+                                Margin="0,3,4,0"
+                                ToolTip="Command history"/>
+
+                        <!-- History popup -->
+                        <Popup x:Name="HistoryPopup"
+                               PlacementTarget="{Binding ElementName=HistoryButton}"
+                               Placement="Top"
+                               StaysOpen="False"
+                               AllowsTransparency="True">
+                            <Border Background="{DynamicResource ThemeMainBg}"
+                                    BorderBrush="{DynamicResource ThemeBorder}"
+                                    BorderThickness="1"
+                                    CornerRadius="4"
+                                    MaxHeight="300" MinWidth="250">
+                                <Grid>
+                                    <TextBlock x:Name="HistoryEmptyText"
+                                               Text="No history yet"
+                                               Foreground="{DynamicResource ThemeMutedText}"
+                                               FontSize="12" FontStyle="Italic"
+                                               HorizontalAlignment="Center"
+                                               Margin="16,12"
+                                               Visibility="Collapsed"/>
+                                    <ListBox x:Name="HistoryListBox"
+                                             Background="Transparent"
+                                             BorderThickness="0"
+                                             MaxHeight="280"
+                                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                             SelectionChanged="HistoryListBox_SelectionChanged">
+                                        <ListBox.ItemContainerStyle>
+                                            <Style TargetType="ListBoxItem">
+                                                <Setter Property="Foreground" Value="#CCCCCC"/>
+                                                <Setter Property="FontFamily" Value="Consolas"/>
+                                                <Setter Property="FontSize" Value="12"/>
+                                                <Setter Property="Padding" Value="8,4"/>
+                                                <Setter Property="Cursor" Value="Hand"/>
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="ListBoxItem">
+                                                            <Border x:Name="Bd" Background="Transparent" Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter/>
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter TargetName="Bd" Property="Background" Value="#333333"/>
+                                                                </Trigger>
+                                                                <Trigger Property="IsSelected" Value="True">
+                                                                    <Setter TargetName="Bd" Property="Background" Value="#0e639c"/>
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </ListBox.ItemContainerStyle>
+                                    </ListBox>
+                                </Grid>
+                            </Border>
+                        </Popup>
 
                         <TextBox x:Name="InputBox"
-                                 Grid.Column="1"
+                                 Grid.Column="2"
                                  Background="{DynamicResource ThemeMainBg}"
                                  Foreground="#CCCCCC"
                                  CaretBrush="#CCCCCC"
@@ -139,7 +212,7 @@
                                  PreviewDragOver="InputBox_PreviewDragOver"
                                  PreviewDrop="InputBox_PreviewDrop"/>
 
-                        <StackPanel Grid.Column="2" Orientation="Vertical" Margin="4,0,0,0">
+                        <StackPanel Grid.Column="3" Orientation="Vertical" Margin="4,0,0,0">
                             <StackPanel Orientation="Horizontal">
                                 <Button x:Name="SnippetButton"
                                         Content="{}{}"

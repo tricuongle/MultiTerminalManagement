@@ -20,6 +20,7 @@ namespace MultiTerminalManagement
         private readonly Dictionary<TerminalViewModel, TerminalControl> _terminalControls = new();
         private TerminalViewModel _zoomedTerminal;
         private bool _initialized;
+        private bool _isProcessingCollectionChange;
         private BroadcastWindow _broadcastWindow;
 
         public MainWindow()
@@ -35,6 +36,8 @@ namespace MultiTerminalManagement
             _viewModel.FocusTerminalRequested += OnFocusTerminalRequested;
             _initialized = true;
 
+            Loaded += (s, e) => UpdateLayoutButtonHighlights();
+
             // Auto-restore session
             var settings = AppSettings.Load();
             if (settings.AutoRestoreSession)
@@ -48,6 +51,7 @@ namespace MultiTerminalManagement
             var s = AppSettings.Load();
             _viewModel.FontSize = s.FontSize;
             _viewModel.IsAutoGrid = true;
+            _viewModel.SelectedPreset = s.LayoutPreset ?? "EvenGrid";
         }
 
         private void SaveSettings()
@@ -58,6 +62,7 @@ namespace MultiTerminalManagement
             s.GridRows = _viewModel.GridRows;
             s.FontSize = _viewModel.FontSize;
             s.IsAutoGrid = true;
+            s.LayoutPreset = _viewModel.SelectedPreset;
             s.Save();
         }
 
@@ -65,73 +70,87 @@ namespace MultiTerminalManagement
 
         private void Terminals_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
-            if (e.Action == NotifyCollectionChangedAction.Add)
+            _isProcessingCollectionChange = true;
+            try
             {
-                foreach (TerminalViewModel vm in e.NewItems)
+                if (e.Action == NotifyCollectionChangedAction.Add)
                 {
-                    var tc = new TerminalControl { DataContext = vm };
-                    tc.CloseRequested += (s, _) => _viewModel.CloseTerminalCommand.Execute(vm);
-                    tc.ZoomRequested += (s, _) => ToggleZoom(vm);
-
-                    // Broadcast: when one terminal sends, relay to others
-                    tc.BroadcastSendRequested += (sender, text) =>
+                    foreach (TerminalViewModel vm in e.NewItems)
                     {
-                        foreach (var kvp in _terminalControls)
+                        var tc = new TerminalControl { DataContext = vm };
+                        tc.CloseRequested += (s, _) => _viewModel.CloseTerminalCommand.Execute(vm);
+                        tc.ZoomRequested += (s, _) => ToggleZoom(vm);
+
+                        // Broadcast: when one terminal sends, relay to others
+                        tc.BroadcastSendRequested += (sender, text) =>
                         {
-                            if (kvp.Value != sender && kvp.Key.IsBroadcastTarget)
-                                kvp.Value.SendBroadcastCommand(text);
-                        }
-                    };
+                            foreach (var kvp in _terminalControls)
+                            {
+                                if (kvp.Value != sender && kvp.Key.IsBroadcastTarget)
+                                    kvp.Value.SendBroadcastCommand(text);
+                            }
+                        };
 
-                    // Command completion notification
-                    var settings = AppSettings.Load();
-                    tc.CommandCompleted += (sender, duration) =>
-                    {
-                        if (settings.NotifyOnCommandCompletion
-                            && duration.TotalSeconds >= settings.NotificationThresholdSeconds
-                            && _viewModel.SelectedTerminal != vm)
+                        // Right-click context menu: Rename, Move Left, Move Right, Close
+                        tc.RightClicked += (s, _) => ShowTerminalCellContextMenu(vm, tc);
+
+                        // Command completion notification
+                        var settings = AppSettings.Load();
+                        tc.CommandCompleted += (sender, duration) =>
                         {
-                            ToastNotificationService.ShowNotification(
-                                "Command Completed",
-                                $"\"{vm.Name}\" finished ({duration.TotalSeconds:F0}s)");
-                        }
-                    };
+                            if (settings.NotifyOnCommandCompletion
+                                && duration.TotalSeconds >= settings.NotificationThresholdSeconds
+                                && _viewModel.SelectedTerminal != vm)
+                            {
+                                ToastNotificationService.ShowNotification(
+                                    "Command Completed",
+                                    $"\"{vm.Name}\" finished ({duration.TotalSeconds:F0}s)");
+                            }
+                        };
 
-                    _terminalControls[vm] = tc;
-                    TerminalHost.Children.Add(tc);
-
-                    tc.UpdateFontSize(_viewModel.FontSize);
-                }
-            }
-            else if (e.Action == NotifyCollectionChangedAction.Remove)
-            {
-                foreach (TerminalViewModel vm in e.OldItems)
-                {
-                    if (_terminalControls.TryGetValue(vm, out var tc))
-                    {
-                        TerminalHost.Children.Remove(tc);
-                        _terminalControls.Remove(vm);
-                    }
-                    if (_zoomedTerminal == vm)
-                        _zoomedTerminal = null;
-                }
-            }
-            else if (e.Action == NotifyCollectionChangedAction.Reset)
-            {
-                TerminalHost.Children.Clear();
-                _terminalControls.Clear();
-                _zoomedTerminal = null;
-            }
-            else if (e.Action == NotifyCollectionChangedAction.Move)
-            {
-                TerminalHost.Children.Clear();
-                foreach (var vm in _viewModel.Terminals)
-                {
-                    if (_terminalControls.TryGetValue(vm, out var tc))
+                        _terminalControls[vm] = tc;
                         TerminalHost.Children.Add(tc);
+
+                        tc.UpdateFontSize(_viewModel.FontSize);
+                    }
+                }
+                else if (e.Action == NotifyCollectionChangedAction.Remove)
+                {
+                    foreach (TerminalViewModel vm in e.OldItems)
+                    {
+                        if (_terminalControls.TryGetValue(vm, out var tc))
+                        {
+                            TerminalHost.Children.Remove(tc);
+                            _terminalControls.Remove(vm);
+                        }
+                        if (_zoomedTerminal == vm)
+                            _zoomedTerminal = null;
+                    }
+                }
+                else if (e.Action == NotifyCollectionChangedAction.Reset)
+                {
+                    TerminalHost.Children.Clear();
+                    _terminalControls.Clear();
+                    _zoomedTerminal = null;
+                }
+                else if (e.Action == NotifyCollectionChangedAction.Move)
+                {
+                    TerminalHost.Children.Clear();
+                    foreach (var vm in _viewModel.Terminals)
+                    {
+                        if (_terminalControls.TryGetValue(vm, out var tc))
+                            TerminalHost.Children.Add(tc);
+                    }
                 }
             }
+            finally
+            {
+                _isProcessingCollectionChange = false;
+            }
 
+            // Recalc grid after controls are ready, then update layout once
+            if (_viewModel.IsAutoGrid && _viewModel.IsGridMode)
+                _viewModel.RecalcAutoGrid();
             UpdateTerminalLayout();
         }
 
@@ -139,11 +158,18 @@ namespace MultiTerminalManagement
         {
             if (e.PropertyName is nameof(MainViewModel.IsGridMode)
                 or nameof(MainViewModel.GridColumns)
-                or nameof(MainViewModel.GridRows))
+                or nameof(MainViewModel.GridRows)
+                or nameof(MainViewModel.SelectedPreset))
             {
                 if (e.PropertyName == nameof(MainViewModel.IsGridMode))
                     _zoomedTerminal = null;
-                UpdateTerminalLayout();
+                // Skip layout update if triggered from collection change processing;
+                // the collection change handler will do its own layout update after controls are ready.
+                if (!_isProcessingCollectionChange)
+                {
+                    UpdateTerminalLayout();
+                    UpdateLayoutButtonHighlights();
+                }
             }
 
             if (e.PropertyName == nameof(MainViewModel.SelectedTerminal))
@@ -166,7 +192,8 @@ namespace MultiTerminalManagement
             if (e.PropertyName is nameof(MainViewModel.GridColumns)
                 or nameof(MainViewModel.GridRows)
                 or nameof(MainViewModel.FontSize)
-                or nameof(MainViewModel.IsAutoGrid))
+                or nameof(MainViewModel.IsAutoGrid)
+                or nameof(MainViewModel.SelectedPreset))
             {
                 SaveSettings();
             }
@@ -204,6 +231,13 @@ namespace MultiTerminalManagement
             TerminalHost.RowDefinitions.Clear();
             TerminalHost.ColumnDefinitions.Clear();
 
+            // Reset spans for all controls
+            foreach (var tc in _terminalControls.Values)
+            {
+                Grid.SetRowSpan(tc, 1);
+                Grid.SetColumnSpan(tc, 1);
+            }
+
             if (_terminalControls.Count == 0) return;
 
             if (_viewModel.IsGridMode)
@@ -211,79 +245,28 @@ namespace MultiTerminalManagement
                 if (_zoomedTerminal != null && _terminalControls.ContainsKey(_zoomedTerminal))
                 {
                     // Focus layout: focused terminal large on the left, others stacked on the right
-                    var others = _viewModel.Terminals.Where(k => k != _zoomedTerminal).ToList();
-
-                    if (others.Count == 0)
-                    {
-                        // Only one terminal - full screen
-                        TerminalHost.RowDefinitions.Add(new RowDefinition());
-                        TerminalHost.ColumnDefinitions.Add(new ColumnDefinition());
-                        var tc = _terminalControls[_zoomedTerminal];
-                        Grid.SetRow(tc, 0);
-                        Grid.SetColumn(tc, 0);
-                        tc.Visibility = Visibility.Visible;
-                        tc.ShowHeader = true;
-                        tc.IsZoomed = true;
-                        tc.Margin = new Thickness(0);
-                    }
-                    else
-                    {
-                        // Left column = 3*, Right column = 1*
-                        TerminalHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
-                        TerminalHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-                        // Left: focused terminal spans all rows
-                        int sideRows = Math.Max(1, others.Count);
-                        for (int r = 0; r < sideRows; r++)
-                            TerminalHost.RowDefinitions.Add(new RowDefinition());
-
-                        var focusedTc = _terminalControls[_zoomedTerminal];
-                        Grid.SetRow(focusedTc, 0);
-                        Grid.SetRowSpan(focusedTc, sideRows);
-                        Grid.SetColumn(focusedTc, 0);
-                        focusedTc.Visibility = Visibility.Visible;
-                        focusedTc.ShowHeader = true;
-                        focusedTc.IsZoomed = true;
-                        focusedTc.Margin = new Thickness(1);
-
-                        // Right: other terminals stacked (following Terminals order)
-                        for (int i = 0; i < others.Count; i++)
-                        {
-                            var tc = _terminalControls[others[i]];
-                            Grid.SetRow(tc, i);
-                            Grid.SetRowSpan(tc, 1);
-                            Grid.SetColumn(tc, 1);
-                            tc.Visibility = Visibility.Visible;
-                            tc.ShowHeader = true;
-                            tc.IsZoomed = false;
-                            tc.Margin = new Thickness(1);
-                        }
-                    }
+                    LayoutFocus();
                 }
                 else
                 {
-                    // Auto Grid: calculate rows/cols from terminal count
-                    _viewModel.RecalcAutoGrid();
-                    var cols = Math.Max(1, _viewModel.GridColumns);
-                    var rows = Math.Max(1, _viewModel.GridRows);
-
-                    for (int r = 0; r < rows; r++)
-                        TerminalHost.RowDefinitions.Add(new RowDefinition());
-                    for (int c = 0; c < cols; c++)
-                        TerminalHost.ColumnDefinitions.Add(new ColumnDefinition());
-
-                    int i = 0;
-                    foreach (var vm in _viewModel.Terminals)
+                    // Apply selected layout preset
+                    switch (_viewModel.SelectedPreset)
                     {
-                        if (!_terminalControls.TryGetValue(vm, out var tc)) continue;
-                        Grid.SetRow(tc, i / cols);
-                        Grid.SetRowSpan(tc, 1);
-                        Grid.SetColumn(tc, i % cols);
-                        tc.Visibility = Visibility.Visible;
-                        tc.ShowHeader = true;
-                        tc.IsZoomed = false;
-                        tc.Margin = new Thickness(1);
-                        i++;
+                        case "BigTop":
+                            LayoutBigTop();
+                            break;
+                        case "ThreeColumns":
+                            LayoutThreeColumns();
+                            break;
+                        case "Horizontal":
+                            LayoutHorizontal();
+                            break;
+                        case "Vertical":
+                            LayoutVertical();
+                            break;
+                        default: // EvenGrid
+                            LayoutEvenGrid();
+                            break;
                     }
                 }
             }
@@ -305,6 +288,252 @@ namespace MultiTerminalManagement
                     tc.IsZoomed = false;
                     tc.Margin = new Thickness(0);
                 }
+            }
+        }
+
+        private void LayoutFocus()
+        {
+            if (!_terminalControls.TryGetValue(_zoomedTerminal, out var focusedTc))
+            {
+                _zoomedTerminal = null;
+                LayoutEvenGrid();
+                return;
+            }
+
+            var others = _viewModel.Terminals.Where(k => k != _zoomedTerminal).ToList();
+
+            if (others.Count == 0)
+            {
+                TerminalHost.RowDefinitions.Add(new RowDefinition());
+                TerminalHost.ColumnDefinitions.Add(new ColumnDefinition());
+                Grid.SetRow(focusedTc, 0);
+                Grid.SetColumn(focusedTc, 0);
+                focusedTc.Visibility = Visibility.Visible;
+                focusedTc.ShowHeader = true;
+                focusedTc.IsZoomed = true;
+                focusedTc.Margin = new Thickness(0);
+            }
+            else
+            {
+                TerminalHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(3, GridUnitType.Star) });
+                TerminalHost.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+                int sideRows = Math.Max(1, others.Count);
+                for (int r = 0; r < sideRows; r++)
+                    TerminalHost.RowDefinitions.Add(new RowDefinition());
+
+                Grid.SetRow(focusedTc, 0);
+                Grid.SetRowSpan(focusedTc, sideRows);
+                Grid.SetColumn(focusedTc, 0);
+                focusedTc.Visibility = Visibility.Visible;
+                focusedTc.ShowHeader = true;
+                focusedTc.IsZoomed = true;
+                focusedTc.Margin = new Thickness(1);
+
+                for (int i = 0; i < others.Count; i++)
+                {
+                    if (!_terminalControls.TryGetValue(others[i], out var tc)) continue;
+                    Grid.SetRow(tc, i);
+                    Grid.SetRowSpan(tc, 1);
+                    Grid.SetColumn(tc, 1);
+                    tc.Visibility = Visibility.Visible;
+                    tc.ShowHeader = true;
+                    tc.IsZoomed = false;
+                    tc.Margin = new Thickness(1);
+                }
+            }
+        }
+
+        private void LayoutEvenGrid()
+        {
+            _viewModel.RecalcAutoGrid();
+            var cols = Math.Max(1, _viewModel.GridColumns);
+            var rows = Math.Max(1, _viewModel.GridRows);
+
+            for (int r = 0; r < rows; r++)
+                TerminalHost.RowDefinitions.Add(new RowDefinition());
+            for (int c = 0; c < cols; c++)
+                TerminalHost.ColumnDefinitions.Add(new ColumnDefinition());
+
+            int i = 0;
+            foreach (var vm in _viewModel.Terminals)
+            {
+                if (!_terminalControls.TryGetValue(vm, out var tc)) continue;
+                Grid.SetRow(tc, i / cols);
+                Grid.SetColumn(tc, i % cols);
+                tc.Visibility = Visibility.Visible;
+                tc.ShowHeader = true;
+                tc.IsZoomed = false;
+                tc.Margin = new Thickness(1);
+                i++;
+            }
+        }
+
+        private void LayoutBigTop()
+        {
+            var terminals = _viewModel.Terminals.ToList();
+            if (terminals.Count == 0) return;
+
+            if (terminals.Count == 1)
+            {
+                // Single terminal - full screen
+                TerminalHost.RowDefinitions.Add(new RowDefinition());
+                TerminalHost.ColumnDefinitions.Add(new ColumnDefinition());
+                if (!_terminalControls.TryGetValue(terminals[0], out var tc)) return;
+                Grid.SetRow(tc, 0);
+                Grid.SetColumn(tc, 0);
+                tc.Visibility = Visibility.Visible;
+                tc.ShowHeader = true;
+                tc.IsZoomed = false;
+                tc.Margin = new Thickness(1);
+                return;
+            }
+
+            // Row 0 = 2* (big top), Row 1 = 1* (bottom row)
+            TerminalHost.RowDefinitions.Add(new RowDefinition { Height = new GridLength(2, GridUnitType.Star) });
+            TerminalHost.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            int bottomCount = terminals.Count - 1;
+            for (int c = 0; c < bottomCount; c++)
+                TerminalHost.ColumnDefinitions.Add(new ColumnDefinition());
+
+            // First terminal: row 0, spans all columns
+            if (_terminalControls.TryGetValue(terminals[0], out var topTc))
+            {
+                Grid.SetRow(topTc, 0);
+                Grid.SetColumn(topTc, 0);
+                Grid.SetColumnSpan(topTc, Math.Max(1, bottomCount));
+                topTc.Visibility = Visibility.Visible;
+                topTc.ShowHeader = true;
+                topTc.IsZoomed = false;
+                topTc.Margin = new Thickness(1);
+            }
+
+            // Rest: row 1, one per column
+            for (int i = 1; i < terminals.Count; i++)
+            {
+                if (!_terminalControls.TryGetValue(terminals[i], out var tc)) continue;
+                Grid.SetRow(tc, 1);
+                Grid.SetColumn(tc, i - 1);
+                tc.Visibility = Visibility.Visible;
+                tc.ShowHeader = true;
+                tc.IsZoomed = false;
+                tc.Margin = new Thickness(1);
+            }
+        }
+
+        private void LayoutThreeColumns()
+        {
+            var terminals = _viewModel.Terminals.ToList();
+            if (terminals.Count == 0) return;
+
+            int colCount = Math.Min(3, terminals.Count);
+            for (int c = 0; c < colCount; c++)
+                TerminalHost.ColumnDefinitions.Add(new ColumnDefinition());
+
+            // Calculate rows needed
+            int rowCount = (int)Math.Ceiling((double)terminals.Count / colCount);
+            for (int r = 0; r < rowCount; r++)
+                TerminalHost.RowDefinitions.Add(new RowDefinition());
+
+            for (int i = 0; i < terminals.Count; i++)
+            {
+                if (!_terminalControls.TryGetValue(terminals[i], out var tc)) continue;
+                Grid.SetColumn(tc, i % colCount);
+                Grid.SetRow(tc, i / colCount);
+                tc.Visibility = Visibility.Visible;
+                tc.ShowHeader = true;
+                tc.IsZoomed = false;
+                tc.Margin = new Thickness(1);
+            }
+        }
+
+        private void LayoutHorizontal()
+        {
+            // All terminals in 1 row, N columns
+            TerminalHost.RowDefinitions.Add(new RowDefinition());
+
+            int i = 0;
+            foreach (var vm in _viewModel.Terminals)
+            {
+                if (!_terminalControls.TryGetValue(vm, out var tc)) continue;
+                TerminalHost.ColumnDefinitions.Add(new ColumnDefinition());
+                Grid.SetRow(tc, 0);
+                Grid.SetColumn(tc, i);
+                tc.Visibility = Visibility.Visible;
+                tc.ShowHeader = true;
+                tc.IsZoomed = false;
+                tc.Margin = new Thickness(1);
+                i++;
+            }
+        }
+
+        private void LayoutVertical()
+        {
+            // All terminals in N rows, 1 column
+            TerminalHost.ColumnDefinitions.Add(new ColumnDefinition());
+
+            int i = 0;
+            foreach (var vm in _viewModel.Terminals)
+            {
+                if (!_terminalControls.TryGetValue(vm, out var tc)) continue;
+                TerminalHost.RowDefinitions.Add(new RowDefinition());
+                Grid.SetRow(tc, i);
+                Grid.SetColumn(tc, 0);
+                tc.Visibility = Visibility.Visible;
+                tc.ShowHeader = true;
+                tc.IsZoomed = false;
+                tc.Margin = new Thickness(1);
+                i++;
+            }
+        }
+
+        // ---- Layout button click ----
+
+        private void LayoutButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string tag)
+            {
+                if (tag == "Tab")
+                {
+                    _viewModel.IsGridMode = false;
+                }
+                else
+                {
+                    _viewModel.SelectedPreset = tag;
+                    // SelectedPreset setter already sets IsGridMode = true
+                    // but if already in grid mode with same preset, force layout update
+                    if (_viewModel.IsGridMode)
+                        UpdateTerminalLayout();
+                }
+                UpdateLayoutButtonHighlights();
+            }
+        }
+
+        private void UpdateLayoutButtonHighlights()
+        {
+            var accentBrush = FindResource("ThemeAccent") as Brush ?? Brushes.DodgerBlue;
+            var defaultBg = FindResource("ThemeButtonBg") as Brush ?? new SolidColorBrush(Color.FromRgb(0x3c, 0x3c, 0x3c));
+            var defaultFg = FindResource("ThemeMutedText") as Brush ?? Brushes.Gray;
+
+            var buttons = new Dictionary<string, Button>
+            {
+                { "Tab", BtnLayoutTab },
+                { "EvenGrid", BtnLayoutEvenGrid },
+                { "BigTop", BtnLayoutBigTop },
+                { "ThreeColumns", BtnLayoutThreeColumns },
+                { "Horizontal", BtnLayoutHorizontal },
+                { "Vertical", BtnLayoutVertical },
+            };
+
+            string activeKey = _viewModel.IsGridMode ? _viewModel.SelectedPreset : "Tab";
+
+            foreach (var kvp in buttons)
+            {
+                bool isActive = kvp.Key == activeKey;
+                kvp.Value.Background = isActive ? accentBrush : defaultBg;
+                kvp.Value.Foreground = isActive ? Brushes.White : defaultFg;
+                kvp.Value.BorderBrush = isActive ? accentBrush : new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55));
             }
         }
 
@@ -470,6 +699,55 @@ namespace MultiTerminalManagement
             menu.PlacementTarget = lbi;
             menu.IsOpen = true;
             e.Handled = true;
+        }
+
+        // ---- Terminal cell context menu (works in all display modes) ----
+
+        private void ShowTerminalCellContextMenu(TerminalViewModel vm, TerminalControl tc)
+        {
+            int idx = _viewModel.Terminals.IndexOf(vm);
+            var menu = new ContextMenu();
+
+            var renameItem = new MenuItem { Header = "Rename" };
+            renameItem.Click += (s, _) =>
+            {
+                if (_viewModel.IsGridMode)
+                {
+                    tc.TriggerRename();
+                }
+                else
+                {
+                    // Tab mode: trigger rename on the tab header
+                    var lbi = TabHeaderList.ItemContainerGenerator.ContainerFromItem(vm) as ListBoxItem;
+                    if (lbi != null)
+                    {
+                        var nameText = FindVisualChild<TextBlock>(lbi, "TabNameText");
+                        if (nameText != null)
+                            StartTabRename(nameText);
+                    }
+                }
+            };
+            menu.Items.Add(renameItem);
+
+            menu.Items.Add(new Separator());
+
+            var moveLeftItem = new MenuItem { Header = "Move Left", IsEnabled = idx > 0 };
+            moveLeftItem.Click += (s, _) => _viewModel.MoveTerminal(idx, idx - 1);
+
+            var moveRightItem = new MenuItem { Header = "Move Right", IsEnabled = idx < _viewModel.Terminals.Count - 1 };
+            moveRightItem.Click += (s, _) => _viewModel.MoveTerminal(idx, idx + 1);
+
+            menu.Items.Add(moveLeftItem);
+            menu.Items.Add(moveRightItem);
+
+            menu.Items.Add(new Separator());
+
+            var closeItem = new MenuItem { Header = "Close" };
+            closeItem.Click += (s, _) => _viewModel.CloseTerminalCommand.Execute(vm);
+            menu.Items.Add(closeItem);
+
+            menu.PlacementTarget = tc;
+            menu.IsOpen = true;
         }
 
         // ---- Helpers ----

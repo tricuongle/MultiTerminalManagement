@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using EasyWindowsTerminalControl;
 using Microsoft.Terminal.Wpf;
@@ -20,10 +23,12 @@ namespace MultiTerminalManagement.Views
         private int _fontSize = 14;
         private TerminalSearchBar _searchBar;
         private CommandCompletionMonitor _completionMonitor;
+        private readonly List<string> _commandHistory = new List<string>();
 
         public event EventHandler CloseRequested;
         public event EventHandler ZoomRequested;
         public event EventHandler<string> BroadcastSendRequested;
+        public event EventHandler RightClicked;
 
         public bool ShowHeader
         {
@@ -71,7 +76,25 @@ namespace MultiTerminalManagement.Views
                 };
 
                 _termControl.Focusable = false;
+                _termControl.IsHitTestVisible = false;
+
                 HostGrid.Children.Add(_termControl);
+
+                // Disable the native HWND at the Win32 level so it cannot steal
+                // keyboard focus when the mouse enters its area (WPF airspace issue).
+                // ConPTY output still renders because it arrives via pipe, not Win32 messages.
+                Dispatcher.BeginInvoke(new Action(() => DisableTerminalHwndInput()),
+                    System.Windows.Threading.DispatcherPriority.Loaded);
+
+                // Safety net: if the HWND somehow gets focus, redirect to InputBox.
+                _termControl.GotFocus += (s, ev) =>
+                {
+                    if (_terminalCreated)
+                    {
+                        Dispatcher.BeginInvoke(new Action(() => InputBox.Focus()),
+                            System.Windows.Threading.DispatcherPriority.Input);
+                    }
+                };
 
                 Dispatcher.BeginInvoke(new Action(() => ApplyTheme()),
                     System.Windows.Threading.DispatcherPriority.Loaded);
@@ -133,6 +156,38 @@ namespace MultiTerminalManagement.Views
             ApplyTheme();
         }
 
+        // ---- Win32 HWND input disable ----
+
+        [DllImport("user32.dll")]
+        private static extern bool EnableWindow(IntPtr hWnd, bool bEnable);
+
+        private void DisableTerminalHwndInput()
+        {
+            if (_termControl == null) return;
+            try
+            {
+                // Find the HwndHost (TerminalContainer) inside the EasyTerminalControl
+                var hwndHost = FindDescendant<HwndHost>(_termControl);
+                if (hwndHost != null && hwndHost.Handle != IntPtr.Zero)
+                {
+                    EnableWindow(hwndHost.Handle, false);
+                }
+            }
+            catch { }
+        }
+
+        private static T FindDescendant<T>(DependencyObject parent) where T : DependencyObject
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T result) return result;
+                var desc = FindDescendant<T>(child);
+                if (desc != null) return desc;
+            }
+            return null;
+        }
+
         // ---- Focus management ----
 
         public void FocusInput()
@@ -190,6 +245,18 @@ namespace MultiTerminalManagement.Views
         }
 
         // ---- Rename ----
+
+        public void TriggerRename()
+        {
+            if (HeaderBar.Visibility == Visibility.Visible)
+                StartRename();
+        }
+
+        private void OnCellRightClick(object sender, MouseButtonEventArgs e)
+        {
+            RightClicked?.Invoke(this, EventArgs.Empty);
+            e.Handled = true;
+        }
 
         private void StartRename()
         {
@@ -290,6 +357,14 @@ namespace MultiTerminalManagement.Views
         {
             var text = InputBox.Text;
             if (string.IsNullOrEmpty(text)) return;
+
+            // Add to history (avoid consecutive duplicates, keep last 5)
+            if (_commandHistory.Count == 0 || _commandHistory[_commandHistory.Count - 1] != text)
+            {
+                _commandHistory.Add(text);
+                if (_commandHistory.Count > 5)
+                    _commandHistory.RemoveAt(0);
+            }
 
             InputBox.Clear();
 
@@ -434,6 +509,42 @@ namespace MultiTerminalManagement.Views
         private void ZoomButton_Click(object sender, RoutedEventArgs e)
         {
             ZoomRequested?.Invoke(this, EventArgs.Empty);
+        }
+
+        // ---- History ----
+
+        private void HistoryButton_Click(object sender, RoutedEventArgs e)
+        {
+            HistoryListBox.Items.Clear();
+
+            if (_commandHistory.Count == 0)
+            {
+                HistoryEmptyText.Visibility = Visibility.Visible;
+                HistoryListBox.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                HistoryEmptyText.Visibility = Visibility.Collapsed;
+                HistoryListBox.Visibility = Visibility.Visible;
+
+                // Show most recent first
+                for (int i = _commandHistory.Count - 1; i >= 0; i--)
+                    HistoryListBox.Items.Add(_commandHistory[i]);
+            }
+
+            HistoryPopup.IsOpen = true;
+        }
+
+        private void HistoryListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (HistoryListBox.SelectedItem is string cmd)
+            {
+                InputBox.Text = cmd;
+                InputBox.CaretIndex = cmd.Length;
+                HistoryPopup.IsOpen = false;
+                HistoryListBox.SelectedItem = null;
+                InputBox.Focus();
+            }
         }
 
         // ---- Snippet ----

@@ -65,7 +65,15 @@ namespace MultiTerminalManagement.ViewModels
         public string SelectedPreset
         {
             get => _selectedPreset;
-            set => SetProperty(ref _selectedPreset, value);
+            set
+            {
+                if (SetProperty(ref _selectedPreset, value))
+                {
+                    // Selecting a layout preset auto-enables grid mode
+                    if (!_isGridMode)
+                        IsGridMode = true;
+                }
+            }
         }
 
         public bool IsBroadcastMode
@@ -114,8 +122,8 @@ namespace MultiTerminalManagement.ViewModels
             Terminals.CollectionChanged += (s, e) =>
             {
                 UpdateTerminalIndices();
-                if (_isAutoGrid && _isGridMode)
-                    RecalcAutoGrid();
+                // NOTE: RecalcAutoGrid is called by MainWindow AFTER it creates the
+                // TerminalControl, to avoid layout updates before controls are ready.
             };
         }
 

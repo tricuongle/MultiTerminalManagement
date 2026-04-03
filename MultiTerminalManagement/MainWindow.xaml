@@ -33,50 +33,87 @@
         <!-- Single unified header bar -->
         <Border Grid.Row="0" Background="{DynamicResource ThemeHeaderBg}" Padding="4,3">
             <DockPanel>
-                <!-- Right side: controls -->
+                <!-- Right side: layout preset buttons -->
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                    <ToggleButton Content="Grid"
-                                  IsChecked="{Binding IsGridMode}"
-                                  Padding="10,3"
-                                  Margin="6,0,0,0"
-                                  Cursor="Hand">
-                        <ToggleButton.Style>
-                            <Style TargetType="ToggleButton">
-                                <Setter Property="Background" Value="{DynamicResource ThemeButtonBg}"/>
-                                <Setter Property="Foreground" Value="{DynamicResource ThemeMutedText}"/>
-                                <Setter Property="BorderBrush" Value="#555"/>
-                                <Setter Property="BorderThickness" Value="1"/>
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="ToggleButton">
-                                            <Border x:Name="Bd"
-                                                    Background="{TemplateBinding Background}"
-                                                    BorderBrush="{TemplateBinding BorderBrush}"
-                                                    BorderThickness="{TemplateBinding BorderThickness}"
-                                                    CornerRadius="3"
-                                                    Padding="{TemplateBinding Padding}">
-                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsChecked" Value="True">
-                                                    <Setter Property="Background" Value="{DynamicResource ThemeAccent}"/>
-                                                    <Setter Property="Foreground" Value="White"/>
-                                                    <Setter Property="BorderBrush" Value="{DynamicResource ThemeAccent}"/>
-                                                </Trigger>
-                                                <MultiTrigger>
-                                                    <MultiTrigger.Conditions>
-                                                        <Condition Property="IsMouseOver" Value="True"/>
-                                                        <Condition Property="IsChecked" Value="False"/>
-                                                    </MultiTrigger.Conditions>
-                                                    <Setter Property="Background" Value="#4a4a4a"/>
-                                                </MultiTrigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </Style>
-                        </ToggleButton.Style>
-                    </ToggleButton>
+                    <StackPanel.Resources>
+                        <Style x:Key="LayoutBtn" TargetType="Button">
+                            <Setter Property="Background" Value="{DynamicResource ThemeButtonBg}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource ThemeMutedText}"/>
+                            <Setter Property="BorderBrush" Value="#555"/>
+                            <Setter Property="BorderThickness" Value="1,1,0,1"/>
+                            <Setter Property="Padding" Value="8,3"/>
+                            <Setter Property="Cursor" Value="Hand"/>
+                            <Setter Property="FontSize" Value="12"/>
+                            <Setter Property="FontFamily" Value="Segoe UI Symbol,Segoe UI"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border x:Name="Bd"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="#4a4a4a"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </StackPanel.Resources>
+
+                    <Button x:Name="BtnLayoutTab" Content="Tab" Click="LayoutButton_Click" Tag="Tab"
+                            ToolTip="Tab mode" Margin="6,0,0,0" Style="{StaticResource LayoutBtn}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bd"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="3,0,0,3"
+                                        Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Bd" Property="Background" Value="#4a4a4a"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                    <Button x:Name="BtnLayoutEvenGrid" Content="&#x2593;" Click="LayoutButton_Click" Tag="EvenGrid"
+                            ToolTip="Even Grid" Style="{StaticResource LayoutBtn}"/>
+                    <Button x:Name="BtnLayoutBigTop" Content="&#x2B1C;" Click="LayoutButton_Click" Tag="BigTop"
+                            ToolTip="Big Top" Style="{StaticResource LayoutBtn}"/>
+                    <Button x:Name="BtnLayoutThreeColumns" Content="&#x2561;" Click="LayoutButton_Click" Tag="ThreeColumns"
+                            ToolTip="3 Columns" Style="{StaticResource LayoutBtn}"/>
+                    <Button x:Name="BtnLayoutHorizontal" Content="&#x2194;" Click="LayoutButton_Click" Tag="Horizontal"
+                            ToolTip="Horizontal" Style="{StaticResource LayoutBtn}"/>
+                    <Button x:Name="BtnLayoutVertical" Content="&#x2195;" Click="LayoutButton_Click" Tag="Vertical"
+                            ToolTip="Vertical" Style="{StaticResource LayoutBtn}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border x:Name="Bd"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="1"
+                                        CornerRadius="0,3,3,0"
+                                        Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Bd" Property="Background" Value="#4a4a4a"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
                 </StackPanel>
 
                 <!-- Left side: Tools dropdown, + button -->
