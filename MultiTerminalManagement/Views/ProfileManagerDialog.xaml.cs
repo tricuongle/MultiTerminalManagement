@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
@@ -43,9 +44,22 @@ namespace MultiTerminalManagement.Views
 
             _selected = _profiles[idx];
             ProfNameBox.Text = _selected.Name;
-            ProfTypeCombo.SelectedIndex = _selected.TerminalType == TerminalType.PowerShell ? 1 : 0;
+            ProfTypeCombo.SelectedIndex = _selected.TerminalType switch
+            {
+                TerminalType.PowerShell => 1,
+                TerminalType.SSH => 2,
+                _ => 0
+            };
             ProfDirBox.Text = _selected.DefaultWorkingDirectory ?? "";
             ProfCmdBox.Text = _selected.StartupCommand ?? "";
+
+            // SSH fields
+            ProfSshHostBox.Text = _selected.SshHost ?? "";
+            ProfSshPortBox.Text = _selected.SshPort > 0 ? _selected.SshPort.ToString() : "22";
+            ProfSshUserBox.Text = _selected.SshUser ?? "";
+            ProfSshKeyBox.Text = _selected.SshKeyPath ?? "";
+            ProfSshPasswordBox.Password = MultiTerminalManagement.Helpers.PasswordProtector
+                .Unprotect(_selected.SshPasswordEncrypted) ?? "";
 
             // Select color
             for (int i = 0; i < ProfColorCombo.Items.Count; i++)
@@ -65,6 +79,11 @@ namespace MultiTerminalManagement.Views
             ProfDirBox.Text = "";
             ProfCmdBox.Text = "";
             ProfColorCombo.SelectedIndex = 0;
+            ProfSshHostBox.Text = "";
+            ProfSshPortBox.Text = "22";
+            ProfSshUserBox.Text = "";
+            ProfSshKeyBox.Text = "";
+            ProfSshPasswordBox.Password = "";
         }
 
         private void Add_Click(object sender, RoutedEventArgs e)
@@ -86,13 +105,78 @@ namespace MultiTerminalManagement.Views
             ClearForm();
         }
 
+        private void ProfTypeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (ProfSshPanel == null) return;
+            ProfSshPanel.Visibility = ProfTypeCombo.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private void ProfBrowseSshKey_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Select SSH Key File",
+                Filter = "All Files (*.*)|*.*|PEM Files (*.pem)|*.pem",
+                InitialDirectory = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh")
+            };
+            if (dialog.ShowDialog(this) == true)
+                ProfSshKeyBox.Text = dialog.FileName;
+        }
+
+        private void ProfGenerateSshKey_Click(object sender, RoutedEventArgs e)
+        {
+            if (!MultiTerminalManagement.Helpers.SshKeyHelper.DefaultKeyExists())
+            {
+                if (!MultiTerminalManagement.Helpers.SshKeyHelper.GenerateDefaultKey(out string err))
+                {
+                    MessageBox.Show($"Failed to generate SSH key:\n{err}", "Error",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+            }
+
+            var pubKey = MultiTerminalManagement.Helpers.SshKeyHelper.ReadPublicKey();
+            ProfSshKeyBox.Text = MultiTerminalManagement.Helpers.SshKeyHelper.DefaultPrivateKeyPath;
+
+            if (!string.IsNullOrEmpty(pubKey))
+            {
+                try { Clipboard.SetText(pubKey); } catch { }
+                var user = string.IsNullOrWhiteSpace(ProfSshUserBox.Text) ? "USER" : ProfSshUserBox.Text.Trim();
+                var host = string.IsNullOrWhiteSpace(ProfSshHostBox.Text) ? "HOST" : ProfSshHostBox.Text.Trim();
+                MessageBox.Show(
+                    "SSH key is ready. Public key copied to clipboard.\n\n" +
+                    "On the remote server, run:\n" +
+                    "  mkdir -p ~/.ssh && chmod 700 ~/.ssh\n" +
+                    "  echo '<PASTE_PUBLIC_KEY>' >> ~/.ssh/authorized_keys\n" +
+                    "  chmod 600 ~/.ssh/authorized_keys\n\n" +
+                    $"Or one-line from this PC:\n" +
+                    $"  type \"%USERPROFILE%\\.ssh\\id_ed25519.pub\" | ssh {user}@{host} \"mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys\"",
+                    "SSH Key Ready", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
         private void Save_Click(object sender, RoutedEventArgs e)
         {
             if (_selected == null) return;
             _selected.Name = ProfNameBox.Text?.Trim() ?? "Profile";
-            _selected.TerminalType = ProfTypeCombo.SelectedIndex == 1 ? TerminalType.PowerShell : TerminalType.Cmd;
+            _selected.TerminalType = ProfTypeCombo.SelectedIndex switch
+            {
+                1 => TerminalType.PowerShell,
+                2 => TerminalType.SSH,
+                _ => TerminalType.Cmd
+            };
             _selected.DefaultWorkingDirectory = string.IsNullOrWhiteSpace(ProfDirBox.Text) ? null : ProfDirBox.Text.Trim();
             _selected.StartupCommand = string.IsNullOrWhiteSpace(ProfCmdBox.Text) ? null : ProfCmdBox.Text.Trim();
+
+            // SSH fields
+            _selected.SshHost = string.IsNullOrWhiteSpace(ProfSshHostBox.Text) ? null : ProfSshHostBox.Text.Trim();
+            _selected.SshPort = int.TryParse(ProfSshPortBox.Text?.Trim(), out int port) && port > 0 ? port : 22;
+            _selected.SshUser = string.IsNullOrWhiteSpace(ProfSshUserBox.Text) ? null : ProfSshUserBox.Text.Trim();
+            _selected.SshKeyPath = string.IsNullOrWhiteSpace(ProfSshKeyBox.Text) ? null : ProfSshKeyBox.Text.Trim();
+            _selected.SshPasswordEncrypted = string.IsNullOrEmpty(ProfSshPasswordBox.Password)
+                ? null
+                : MultiTerminalManagement.Helpers.PasswordProtector.Protect(ProfSshPasswordBox.Password);
 
             if (ProfColorCombo.SelectedItem is ComboBoxItem ci)
                 _selected.IconColor = ci.Content?.ToString() ?? "#0e639c";

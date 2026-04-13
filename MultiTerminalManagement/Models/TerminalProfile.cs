@@ -12,6 +12,13 @@ namespace MultiTerminalManagement.Models
         public string DefaultWorkingDirectory { get; set; }
         public string StartupCommand { get; set; }
         public string IconColor { get; set; } = "#0e639c";
+
+        // SSH
+        public string SshHost { get; set; }
+        public int SshPort { get; set; } = 22;
+        public string SshUser { get; set; }
+        public string SshKeyPath { get; set; }
+        public string SshPasswordEncrypted { get; set; }
     }
 
     public static class TerminalProfileStore

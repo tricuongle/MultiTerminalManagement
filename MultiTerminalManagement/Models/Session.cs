@@ -11,6 +11,13 @@ namespace MultiTerminalManagement.Models
         public TerminalType TerminalType { get; set; }
         public string WorkingDirectory { get; set; }
         public string StartupCommand { get; set; }
+
+        // SSH
+        public string SshHost { get; set; }
+        public int SshPort { get; set; } = 22;
+        public string SshUser { get; set; }
+        public string SshKeyPath { get; set; }
+        public string SshPasswordEncrypted { get; set; }
     }
 
     public class Session

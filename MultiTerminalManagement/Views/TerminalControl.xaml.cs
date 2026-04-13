@@ -89,6 +89,12 @@ namespace MultiTerminalManagement.Views
                 Dispatcher.BeginInvoke(new Action(() => ApplyTheme()),
                     System.Windows.Threading.DispatcherPriority.Loaded);
 
+                // SSH: auto-type saved password if provided
+                if (vm.Type == Models.TerminalType.SSH && !string.IsNullOrEmpty(vm.SshPassword))
+                {
+                    _ = AutoTypeSshPasswordAsync(vm.SshPassword);
+                }
+
                 // Send startup command if configured
                 if (!string.IsNullOrEmpty(vm.StartupCommand))
                 {
@@ -111,6 +117,22 @@ namespace MultiTerminalManagement.Views
             }
             await System.Threading.Tasks.Task.Delay(300); // buffer for shell prompt
             foreach (char c in command)
+                WriteToConPTY(c.ToString());
+            WriteToConPTY("\r");
+        }
+
+        private async System.Threading.Tasks.Task AutoTypeSshPasswordAsync(string password)
+        {
+            // Poll for terminal readiness (max 5s)
+            for (int i = 0; i < 50; i++)
+            {
+                await System.Threading.Tasks.Task.Delay(100);
+                if (_termControl?.ConPTYTerm != null) break;
+            }
+            // Wait for ssh.exe to connect and reach the password prompt.
+            // 2s is a reasonable default for LAN/local servers.
+            await System.Threading.Tasks.Task.Delay(2000);
+            foreach (char c in password)
                 WriteToConPTY(c.ToString());
             WriteToConPTY("\r");
         }

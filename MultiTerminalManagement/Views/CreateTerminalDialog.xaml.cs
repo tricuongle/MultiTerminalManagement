@@ -27,6 +27,13 @@ namespace MultiTerminalManagement.Views
         public string StartupCommand { get; private set; }
         public string AccentColor { get; private set; }
 
+        // SSH
+        public string SshHost { get; private set; }
+        public int SshPort { get; private set; } = 22;
+        public string SshUser { get; private set; }
+        public string SshKeyPath { get; private set; }
+        public string SshPassword { get; private set; }
+
         public CreateTerminalDialog(IEnumerable<string> existingTerminalNames = null)
         {
             InitializeComponent();
@@ -60,8 +67,21 @@ namespace MultiTerminalManagement.Views
             {
                 _selectedProfile = profile;
                 NameBox.Text = GetNextName(profile.Name);
-                TypeCombo.SelectedIndex = profile.TerminalType == TerminalType.PowerShell ? 1 : 0;
+                TypeCombo.SelectedIndex = profile.TerminalType switch
+                {
+                    TerminalType.PowerShell => 1,
+                    TerminalType.SSH => 2,
+                    _ => 0
+                };
                 PathBox.Text = profile.DefaultWorkingDirectory ?? "";
+
+                // Fill SSH fields from profile
+                SshHostBox.Text = profile.SshHost ?? "";
+                SshPortBox.Text = profile.SshPort > 0 ? profile.SshPort.ToString() : "22";
+                SshUserBox.Text = profile.SshUser ?? "";
+                SshKeyBox.Text = profile.SshKeyPath ?? "";
+                SshPasswordBox.Password = MultiTerminalManagement.Helpers.PasswordProtector
+                    .Unprotect(profile.SshPasswordEncrypted) ?? "";
             }
         }
 
@@ -87,6 +107,16 @@ namespace MultiTerminalManagement.Views
             return $"{baseName} {(maxNum + 1):D2}";
         }
 
+        private void TypeCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (SshPanel == null) return; // not yet initialized
+            bool isSsh = TypeCombo.SelectedIndex == 2;
+            SshPanel.Visibility = isSsh ? Visibility.Visible : Visibility.Collapsed;
+            DirLabel.Visibility = isSsh ? Visibility.Collapsed : Visibility.Visible;
+            PathBox.Visibility = isSsh ? Visibility.Collapsed : Visibility.Visible;
+            DirButtons.Visibility = isSsh ? Visibility.Collapsed : Visibility.Visible;
+        }
+
         private void Browse_Click(object sender, RoutedEventArgs e)
         {
             var dialog = new System.Windows.Forms.FolderBrowserDialog
@@ -109,13 +139,81 @@ namespace MultiTerminalManagement.Views
             PathBox.Text = "";
         }
 
+        private void BrowseSshKey_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Select SSH Key File",
+                Filter = "All Files (*.*)|*.*|PEM Files (*.pem)|*.pem",
+                InitialDirectory = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ssh")
+            };
+            if (dialog.ShowDialog(this) == true)
+                SshKeyBox.Text = dialog.FileName;
+        }
+
+        private void GenerateSshKey_Click(object sender, RoutedEventArgs e)
+        {
+            var helper = MultiTerminalManagement.Helpers.SshKeyHelper.DefaultKeyExists();
+            if (!helper)
+            {
+                if (!MultiTerminalManagement.Helpers.SshKeyHelper.GenerateDefaultKey(out string err))
+                {
+                    MessageBox.Show($"Failed to generate SSH key:\n{err}", "Error",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+            }
+
+            var pubKey = MultiTerminalManagement.Helpers.SshKeyHelper.ReadPublicKey();
+            SshKeyBox.Text = MultiTerminalManagement.Helpers.SshKeyHelper.DefaultPrivateKeyPath;
+
+            if (!string.IsNullOrEmpty(pubKey))
+            {
+                try { Clipboard.SetText(pubKey); } catch { }
+
+                var user = string.IsNullOrWhiteSpace(SshUserBox.Text) ? "USER" : SshUserBox.Text.Trim();
+                var host = string.IsNullOrWhiteSpace(SshHostBox.Text) ? "HOST" : SshHostBox.Text.Trim();
+                MessageBox.Show(
+                    "SSH key is ready. Public key has been copied to clipboard.\n\n" +
+                    "To enable password-less login, run this on the remote server:\n\n" +
+                    "  mkdir -p ~/.ssh && chmod 700 ~/.ssh\n" +
+                    "  echo '<PASTE_PUBLIC_KEY>' >> ~/.ssh/authorized_keys\n" +
+                    "  chmod 600 ~/.ssh/authorized_keys\n\n" +
+                    $"Or from any machine with ssh access:\n\n" +
+                    $"  type \"%USERPROFILE%\\.ssh\\id_ed25519.pub\" | ssh {user}@{host} \"mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys\"",
+                    "SSH Key Ready", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
         private void Create_Click(object sender, RoutedEventArgs e)
         {
             TerminalName = string.IsNullOrWhiteSpace(NameBox.Text) ? "Terminal" : NameBox.Text.Trim();
-            TerminalType = TypeCombo.SelectedIndex == 0 ? TerminalType.Cmd : TerminalType.PowerShell;
+            TerminalType = TypeCombo.SelectedIndex switch
+            {
+                1 => TerminalType.PowerShell,
+                2 => TerminalType.SSH,
+                _ => TerminalType.Cmd
+            };
 
             string path = PathBox.Text?.Trim();
             WorkingDirectory = string.IsNullOrEmpty(path) ? null : path;
+
+            // SSH validation & fields
+            if (TerminalType == TerminalType.SSH)
+            {
+                if (string.IsNullOrWhiteSpace(SshHostBox.Text))
+                {
+                    MessageBox.Show("SSH Host is required.", "Validation", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    SshHostBox.Focus();
+                    return;
+                }
+                SshHost = SshHostBox.Text.Trim();
+                SshPort = int.TryParse(SshPortBox.Text?.Trim(), out int port) && port > 0 ? port : 22;
+                SshUser = string.IsNullOrWhiteSpace(SshUserBox.Text) ? null : SshUserBox.Text.Trim();
+                SshKeyPath = string.IsNullOrWhiteSpace(SshKeyBox.Text) ? null : SshKeyBox.Text.Trim();
+                SshPassword = string.IsNullOrEmpty(SshPasswordBox.Password) ? null : SshPasswordBox.Password;
+            }
 
             // Read StartupCommand and AccentColor from profile
             if (_selectedProfile != null)

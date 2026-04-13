@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="New Terminal"
-        Width="460" Height="280"
+        Width="460" Height="500"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="#1e1e1e">
@@ -56,13 +56,15 @@
         <ComboBox x:Name="TypeCombo"
                   Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2"
                   SelectedIndex="0"
-                  Padding="4">
+                  Padding="4"
+                  SelectionChanged="TypeCombo_SelectionChanged">
             <ComboBoxItem Content="CMD"/>
             <ComboBoxItem Content="PowerShell"/>
+            <ComboBoxItem Content="SSH"/>
         </ComboBox>
 
-        <!-- Working Directory -->
-        <TextBlock Grid.Row="6" Grid.Column="0"
+        <!-- Working Directory (hidden for SSH) -->
+        <TextBlock x:Name="DirLabel" Grid.Row="6" Grid.Column="0"
                    Text="Directory:"
                    Foreground="#CCCCCC"
                    VerticalAlignment="Center"/>
@@ -73,12 +75,77 @@
                  CaretBrush="#CCCCCC"
                  BorderBrush="#3e3e3e"
                  Padding="4"/>
-        <StackPanel Grid.Row="6" Grid.Column="2" Orientation="Horizontal">
+        <StackPanel x:Name="DirButtons" Grid.Row="6" Grid.Column="2" Orientation="Horizontal">
             <Button Content="..." Width="30" Margin="4,0,0,0"
                     Click="Browse_Click" ToolTip="Browse folder"/>
             <Button Content="X" Width="30" Margin="4,0,0,0"
                     Click="ClearPath_Click" ToolTip="Clear path"
                     Foreground="#999" Background="Transparent" BorderThickness="0"/>
+        </StackPanel>
+
+        <!-- SSH Fields (visible only for SSH type) -->
+        <StackPanel x:Name="SshPanel" Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="3"
+                    Visibility="Collapsed" Margin="0,8,0,0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="8"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="80"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0" Text="Host *:" Foreground="#CCCCCC" VerticalAlignment="Center"/>
+                <TextBox x:Name="SshHostBox" Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2"
+                         Background="#2d2d2d" Foreground="#CCCCCC" CaretBrush="#CCCCCC"
+                         BorderBrush="#3e3e3e" Padding="4"
+                         ToolTip="SSH host address (required)"/>
+
+                <TextBlock Grid.Row="2" Text="Port:" Foreground="#CCCCCC" VerticalAlignment="Center"/>
+                <TextBox x:Name="SshPortBox" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2"
+                         Background="#2d2d2d" Foreground="#CCCCCC" CaretBrush="#CCCCCC"
+                         BorderBrush="#3e3e3e" Padding="4"
+                         Text="22"/>
+
+                <TextBlock Grid.Row="4" Text="Username:" Foreground="#CCCCCC" VerticalAlignment="Center"/>
+                <TextBox x:Name="SshUserBox" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2"
+                         Background="#2d2d2d" Foreground="#CCCCCC" CaretBrush="#CCCCCC"
+                         BorderBrush="#3e3e3e" Padding="4"/>
+
+                <TextBlock Grid.Row="6" Text="Password:" Foreground="#CCCCCC" VerticalAlignment="Center"/>
+                <PasswordBox x:Name="SshPasswordBox" Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="2"
+                             Background="#2d2d2d" Foreground="#CCCCCC" CaretBrush="#CCCCCC"
+                             BorderBrush="#3e3e3e" Padding="4"
+                             ToolTip="Optional - if set, app auto-types it (encrypted with Windows DPAPI)"/>
+            </Grid>
+
+            <!-- Key File row -->
+            <Grid Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="80"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="Key File:" Foreground="#CCCCCC" VerticalAlignment="Center"/>
+                <TextBox x:Name="SshKeyBox" Grid.Column="1"
+                         Background="#2d2d2d" Foreground="#CCCCCC" CaretBrush="#CCCCCC"
+                         BorderBrush="#3e3e3e" Padding="4"
+                         ToolTip="Optional - leave empty to use password"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button Content="..." Width="30" Margin="4,0,0,0"
+                            Click="BrowseSshKey_Click" ToolTip="Browse SSH key file"/>
+                    <Button Content="Generate" Margin="4,0,0,0" Padding="6,0"
+                            Click="GenerateSshKey_Click"
+                            ToolTip="Generate a new SSH key pair (no passphrase) and copy public key to clipboard"/>
+                </StackPanel>
+            </Grid>
         </StackPanel>
 
         <!-- Buttons -->

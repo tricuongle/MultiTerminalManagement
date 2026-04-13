@@ -11,31 +11,34 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="EasyWindowsTerminalControl" Version="1.0.36" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
   </ItemGroup>
 
-  <!-- Copy ALL native DLLs directly to output directory -->
-  <Target Name="CopyNativeFiles" AfterTargets="Build">
+  <!-- Copy ALL native DLLs directly to output/publish directory -->
+  <Target Name="CopyNativeFiles" AfterTargets="Build;Publish">
     <PropertyGroup>
       <TermWpfPkg>$(NuGetPackageRoot)ci.microsoft.terminal.wpf\1.22.250204002\</TermWpfPkg>
       <ConPTYPkg>$(NuGetPackageRoot)ci.microsoft.windows.console.conpty\1.22.250314001\</ConPTYPkg>
+      <NativeTargetDir Condition="'$(PublishDir)' != ''">$(PublishDir)</NativeTargetDir>
+      <NativeTargetDir Condition="'$(NativeTargetDir)' == ''">$(OutputPath)</NativeTargetDir>
     </PropertyGroup>
     <!-- Microsoft.Terminal.Control.dll (native renderer) -->
     <Copy SourceFiles="$(TermWpfPkg)runtimes\win-x64\native\Microsoft.Terminal.Control.dll"
-          DestinationFolder="$(OutputPath)"
+          DestinationFolder="$(NativeTargetDir)"
           SkipUnchangedFiles="true"
           Condition="Exists('$(TermWpfPkg)runtimes\win-x64\native\Microsoft.Terminal.Control.dll')" />
     <!-- conpty.dll -->
     <Copy SourceFiles="$(ConPTYPkg)runtimes\win10-x64\native\conpty.dll"
-          DestinationFolder="$(OutputPath)"
+          DestinationFolder="$(NativeTargetDir)"
           SkipUnchangedFiles="true"
           Condition="Exists('$(ConPTYPkg)runtimes\win10-x64\native\conpty.dll')" />
     <!-- OpenConsole.exe (x64) -->
     <Copy SourceFiles="$(ConPTYPkg)build\native\runtimes\x64\OpenConsole.exe"
-          DestinationFolder="$(OutputPath)x64"
+          DestinationFolder="$(NativeTargetDir)x64"
           SkipUnchangedFiles="true"
           Condition="Exists('$(ConPTYPkg)build\native\runtimes\x64\OpenConsole.exe')" />
     <Copy SourceFiles="$(ConPTYPkg)build\native\runtimes\arm64\OpenConsole.exe"
-          DestinationFolder="$(OutputPath)arm64"
+          DestinationFolder="$(NativeTargetDir)arm64"
           SkipUnchangedFiles="true"
           Condition="Exists('$(ConPTYPkg)build\native\runtimes\arm64\OpenConsole.exe')" />
   </Target>

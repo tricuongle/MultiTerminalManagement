@@ -141,40 +141,52 @@
                                     BorderBrush="{DynamicResource ThemeBorder}"
                                     BorderThickness="1"
                                     CornerRadius="4"
-                                    MaxHeight="300" MinWidth="250">
+                                    MaxHeight="400" MinWidth="280" MaxWidth="500">
                                 <Grid>
                                     <TextBlock x:Name="HistoryEmptyText"
                                                Text="No history yet"
                                                Foreground="{DynamicResource ThemeMutedText}"
-                                               FontSize="12" FontStyle="Italic"
+                                               FontSize="14" FontStyle="Italic"
                                                HorizontalAlignment="Center"
                                                Margin="16,12"
                                                Visibility="Collapsed"/>
                                     <ListBox x:Name="HistoryListBox"
                                              Background="Transparent"
                                              BorderThickness="0"
-                                             MaxHeight="280"
+                                             MaxHeight="360"
                                              ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                              SelectionChanged="HistoryListBox_SelectionChanged">
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <DockPanel>
+                                                    <Border DockPanel.Dock="Left" Width="3" Background="#569CD6" CornerRadius="1" Margin="0,2,8,2"/>
+                                                    <TextBlock Text="{Binding}"
+                                                               TextWrapping="Wrap"
+                                                               FontFamily="Consolas"
+                                                               FontSize="14"
+                                                               Foreground="#D4D4D4"/>
+                                                </DockPanel>
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
                                         <ListBox.ItemContainerStyle>
                                             <Style TargetType="ListBoxItem">
-                                                <Setter Property="Foreground" Value="#CCCCCC"/>
-                                                <Setter Property="FontFamily" Value="Consolas"/>
-                                                <Setter Property="FontSize" Value="12"/>
-                                                <Setter Property="Padding" Value="8,4"/>
+                                                <Setter Property="Padding" Value="10,6"/>
                                                 <Setter Property="Cursor" Value="Hand"/>
+                                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                                                 <Setter Property="Template">
                                                     <Setter.Value>
                                                         <ControlTemplate TargetType="ListBoxItem">
-                                                            <Border x:Name="Bd" Background="Transparent" Padding="{TemplateBinding Padding}">
+                                                            <Border x:Name="Bd" Background="Transparent" Padding="{TemplateBinding Padding}"
+                                                                    BorderBrush="#333333" BorderThickness="0,0,0,1">
                                                                 <ContentPresenter/>
                                                             </Border>
                                                             <ControlTemplate.Triggers>
                                                                 <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter TargetName="Bd" Property="Background" Value="#333333"/>
+                                                                    <Setter TargetName="Bd" Property="Background" Value="#2a2d2e"/>
                                                                 </Trigger>
                                                                 <Trigger Property="IsSelected" Value="True">
-                                                                    <Setter TargetName="Bd" Property="Background" Value="#0e639c"/>
+                                                                    <Setter TargetName="Bd" Property="Background" Value="#264f78"/>
                                                                 </Trigger>
                                                             </ControlTemplate.Triggers>
                                                         </ControlTemplate>

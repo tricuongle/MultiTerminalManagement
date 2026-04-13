@@ -31,6 +31,17 @@ namespace MultiTerminalManagement.ViewModels
         public string WorkingDirectory { get; }
         public string StartupCommand { get; }
 
+        // SSH
+        public string SshHost { get; }
+        public int SshPort { get; }
+        public string SshUser { get; }
+        public string SshKeyPath { get; }
+        /// <summary>
+        /// Plaintext SSH password held only in memory for auto-typing.
+        /// Persisted versions are DPAPI-encrypted.
+        /// </summary>
+        public string SshPassword { get; }
+
         // Broadcast
         private bool _isBroadcastTarget = true;
         private bool _isBroadcastModeActive;
@@ -99,7 +110,12 @@ namespace MultiTerminalManagement.ViewModels
 
         public string DisplayIndex => $"#{Index + 1}";
 
-        public string TypeIcon => Type == TerminalType.PowerShell ? "PS" : ">_";
+        public string TypeIcon => Type switch
+        {
+            TerminalType.PowerShell => "PS",
+            TerminalType.SSH => "SSH",
+            _ => ">_"
+        };
 
         /// <summary>
         /// Stores the TermPTY for persistence across tab switches.
@@ -107,19 +123,39 @@ namespace MultiTerminalManagement.ViewModels
         /// </summary>
         public object TermPty { get; set; }
 
-        public TerminalViewModel(string name, TerminalType type, string workingDirectory = null, int index = 0, string startupCommand = null)
+        public TerminalViewModel(string name, TerminalType type, string workingDirectory = null, int index = 0, string startupCommand = null,
+            string sshHost = null, int sshPort = 22, string sshUser = null, string sshKeyPath = null, string sshPassword = null)
         {
             _index = index;
             Name = name;
             Type = type;
             WorkingDirectory = workingDirectory;
             StartupCommand = startupCommand;
-            CommandLine = BuildCommandLine(type, workingDirectory);
+            SshHost = sshHost;
+            SshPort = sshPort;
+            SshUser = sshUser;
+            SshKeyPath = sshKeyPath;
+            SshPassword = sshPassword;
+            CommandLine = BuildCommandLine(type, workingDirectory, sshHost, sshPort, sshUser, sshKeyPath);
             AccentColor = AccentPalette[index % AccentPalette.Length];
         }
 
-        private static string BuildCommandLine(TerminalType type, string workingDirectory)
+        private static string BuildCommandLine(TerminalType type, string workingDirectory,
+            string sshHost = null, int sshPort = 22, string sshUser = null, string sshKeyPath = null)
         {
+            if (type == TerminalType.SSH && !string.IsNullOrEmpty(sshHost))
+            {
+                // -o StrictHostKeyChecking=accept-new : skip first-time yes/no prompt
+                var args = "ssh.exe -o StrictHostKeyChecking=accept-new";
+                if (sshPort != 22)
+                    args += $" -p {sshPort}";
+                if (!string.IsNullOrEmpty(sshKeyPath))
+                    args += $" -i \"{sshKeyPath}\"";
+                var target = string.IsNullOrEmpty(sshUser) ? sshHost : $"{sshUser}@{sshHost}";
+                args += $" {target}";
+                return args;
+            }
+
             if (!string.IsNullOrEmpty(workingDirectory))
             {
                 return type == TerminalType.PowerShell

@@ -150,7 +150,8 @@ namespace MultiTerminalManagement.ViewModels
 
             if (dialog.ShowDialog() == true)
             {
-                var vm = new TerminalViewModel(dialog.TerminalName, dialog.TerminalType, dialog.WorkingDirectory, Terminals.Count, dialog.StartupCommand);
+                var vm = new TerminalViewModel(dialog.TerminalName, dialog.TerminalType, dialog.WorkingDirectory, Terminals.Count, dialog.StartupCommand,
+                    dialog.SshHost, dialog.SshPort, dialog.SshUser, dialog.SshKeyPath, dialog.SshPassword);
                 if (!string.IsNullOrEmpty(dialog.AccentColor))
                     vm.AccentColor = dialog.AccentColor;
                 Terminals.Add(vm);
@@ -249,7 +250,12 @@ namespace MultiTerminalManagement.ViewModels
                 profile.TerminalType,
                 profile.DefaultWorkingDirectory,
                 Terminals.Count,
-                profile.StartupCommand);
+                profile.StartupCommand,
+                profile.SshHost,
+                profile.SshPort,
+                profile.SshUser,
+                profile.SshKeyPath,
+                Helpers.PasswordProtector.Unprotect(profile.SshPasswordEncrypted));
             if (!string.IsNullOrEmpty(profile.IconColor))
                 vm.AccentColor = profile.IconColor;
             Terminals.Add(vm);
@@ -280,7 +286,12 @@ namespace MultiTerminalManagement.ViewModels
                     Name = t.Name,
                     TerminalType = t.Type,
                     WorkingDirectory = t.WorkingDirectory,
-                    StartupCommand = t.StartupCommand
+                    StartupCommand = t.StartupCommand,
+                    SshHost = t.SshHost,
+                    SshPort = t.SshPort,
+                    SshUser = t.SshUser,
+                    SshKeyPath = t.SshKeyPath,
+                    SshPasswordEncrypted = Helpers.PasswordProtector.Protect(t.SshPassword)
                 });
             }
 
@@ -300,7 +311,9 @@ namespace MultiTerminalManagement.ViewModels
 
             foreach (var tc in session.Terminals)
             {
-                var vm = new TerminalViewModel(tc.Name, tc.TerminalType, tc.WorkingDirectory, Terminals.Count, tc.StartupCommand);
+                var vm = new TerminalViewModel(tc.Name, tc.TerminalType, tc.WorkingDirectory, Terminals.Count, tc.StartupCommand,
+                    tc.SshHost, tc.SshPort, tc.SshUser, tc.SshKeyPath,
+                    Helpers.PasswordProtector.Unprotect(tc.SshPasswordEncrypted));
                 Terminals.Add(vm);
             }
 
